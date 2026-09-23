@@ -1,0 +1,46 @@
+# Core
+torch>=2.1
+torchaudio>=2.1
+numpy
+soundfile
+librosa
+
+# Diarization
+pyannote.audio>=4.0        # requires Python 3.10+
+
+# Separation
+speechbrain>=1.0
+# asteroid                 # optional, for Conv-TasNet baseline
+
+# ASR + alignment
+transformers>=4.44
+faster-whisper
+whisperx                   # Whisper + wav2vec2 alignment + pyannote glue
+# nemo_toolkit[asr]        # optional, for IndicConformer (AI4Bharat NeMo fork)
+
+# Denoise (optional)
+demucs                     # music/vocal separation used ONLY as a denoiser
+
+# LLM post-processing (pick per backend)
+anthropic
+# openai
+# google-genai
+# sarvamai
+
+# Indic text normalization (REQUIRED for correct WER/CER)
+indic-nlp-library
+
+# Metrics
+jiwer
+pyannote.metrics
+torchmetrics
+rouge-score
+bert-score
+
+# Config / tooling
+omegaconf
+pyyaml
+ruff
+mypy
+pytest
+jupyter

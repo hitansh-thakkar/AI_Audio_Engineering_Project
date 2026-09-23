@@ -1,0 +1,53 @@
+# Dhvani — default pipeline configuration
+# Every behavioral knob lives here. Code reads from config; never hardcode model IDs.
+
+run:
+  seed: 42
+  device: cuda            # cuda | cpu
+  output_dir: outputs/
+  save_intermediate: true # dump per-stage artifacts for debugging/eval
+
+preprocessing:
+  target_sample_rate: 16000
+  mono: true
+  normalize: peak         # peak | lufs | none
+  denoise: none           # none | demucs | dns  (demucs = music/vocal split, NOT speaker separation)
+  chunk_seconds: 120      # split long files for the demo
+
+diarization:
+  source: real            # real | oracle   (oracle loads ground-truth RTTM — for the ablation)
+  backend: community1     # community1 | precision2 | legacy31
+  model: pyannote/speaker-diarization-community-1
+  min_speakers: null
+  max_speakers: null
+  rttm_dir: data/refs/rttm/   # used when source: oracle
+
+separation:
+  mode: overlap           # none | overlap | everywhere   (everywhere = ablation, expected to hurt)
+  backend: sepformer      # sepformer | resepformer | convtasnet
+  model: speechbrain/sepformer-wsj02mix
+  model_sample_rate: 8000 # checkpoints are 8 kHz; resample in/out
+  max_speakers_supported: 2   # documented hard limit
+
+asr:
+  backend: tara           # tara | whisper_large_v3 | indicconformer | sarvam
+  model: Trelis/tara
+  align: true             # WhisperX wav2vec2 forced alignment for word timestamps
+  align_backend: whisperx
+  # normalization for METRICS only — never Whisper default for Devanagari
+  normalizer: indic_script_safe   # NFC + indic-nlp-library
+
+postprocessing:
+  backend: anthropic      # anthropic | openai | google | sarvam_m | sarvam_api
+  structured_output: true # summary + tags + speaker-separated dialogue
+  factual_consistency_check: true   # flag report claims not grounded in transcript
+  forbid_new_facts: true
+
+evaluation:
+  metrics:
+    separation: [si_snri, sdri]
+    diarization: [der, jer, speaker_count_error]
+    asr: [wer, cer]           # reported per register: hindi | english | codeswitch
+    summary: [rouge_l, bertscore, factual_consistency]
+  measure_latency: true
+  measure_peak_memory: true
