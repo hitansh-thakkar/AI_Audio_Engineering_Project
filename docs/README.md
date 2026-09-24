@@ -1,6 +1,5 @@
 # Dhvani — "Who Spoke What and When" Speech Pipeline
 
-> *Dhvani* (ध्वनि, "sound/voice") is a working codename — rename freely.
 
 A multi-stage audio-processing pipeline that takes a **chaotic, multi-speaker, code-switched Indian audio broadcast** (community radio, panel discussions, agricultural phone-ins) and produces a **clean, speaker-attributed, summarized transcript report**.
 
