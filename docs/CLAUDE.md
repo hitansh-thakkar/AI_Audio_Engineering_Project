@@ -10,6 +10,7 @@ Read `docs/ARCHITECTURE.md` for the design and the reasons behind it before writ
 
 ## Golden rules (do not violate without flagging)
 
+0. **Runs fully locally, no paid services.** The entire default pipeline runs on one consumer PC with zero paid APIs, zero cloud inference, and zero per-token cost. The *only* acceptable credential is a **free** Hugging Face token for pyannote's click-through gated licenses (gated ≠ paid). Every model is open-weights on the user's machine: pyannote (CPU), SpeechBrain, faster-whisper, and a local LLM via Ollama. Paid backends (frontier/Sarvam APIs, pyannote precision-2) may exist only as clearly-labeled *optional* toggles — never on the default path, never as a default value.
 1. **Diarization runs before separation.** Separation is applied *only* to overlapped regions by default. Do not restore a blind separate-everything front-end except behind the `separation.mode: everywhere` toggle (it exists for the ablation, not as the default).
 2. **Every stage is swappable behind an interface.** All models are loaded via a registry driven by `config/default.yaml`. Never hardcode a model ID inside pipeline logic — read it from config.
 3. **Use an Indic-script-safe text normalizer for WER/CER.** Whisper's default normalizer strips Devanagari matras and inflates Devanagari WER. Use NFC + `indic-nlp-library` normalization. This is a correctness bug if you get it wrong — all reported numbers depend on it.
@@ -17,12 +18,13 @@ Read `docs/ARCHITECTURE.md` for the design and the reasons behind it before writ
 5. **Do not fabricate content in the LLM stage.** The post-processing prompt must constrain the model to only reorganize/clean what is in the transcript. Summaries may not introduce facts absent from the input. Add an explicit instruction and, where feasible, a factual-consistency check.
 6. **Determinism where possible.** Set and log all seeds. Record model versions, config hash, and git SHA in every run manifest so results are reproducible.
 
-## Tech stack
+## Tech stack (all local, all open-weights)
 
 - **Python 3.10+** (pyannote.audio 4.0 requires it), PyTorch, torchaudio.
-- **speechbrain** (SepFormer/Conv-TasNet), **pyannote.audio** (diarization), **openai-whisper** / **faster-whisper** / **whisperx** (ASR + alignment), **transformers** (Tara, Whisper-large-v3).
-- **jiwer** (WER/CER), **pyannote.metrics** (DER/JER), **indic-nlp-library** (normalization).
-- LLM stage via API (Anthropic/OpenAI/Google or Sarvam) or local Sarvam-M.
+- **speechbrain** (SepFormer/Conv-TasNet), **pyannote.audio** (diarization, runs on CPU).
+- **faster-whisper** (CTranslate2, int8) is the ASR runtime — runs Whisper-large-v3 / Tara (converted to CT2) / distil/medium/small on GPU or CPU; **whisperx** for word alignment; **transformers** as the fallback path for Tara / IndicConformer.
+- **jiwer** (WER/CER), **pyannote.metrics** (DER/JER), **indic-nlp-library** (normalization), **bert-score** (downloads a free model on first use).
+- LLM stage runs **locally via Ollama** (`http://localhost:11434`); pick the model per hardware tier (see `docs/LOCAL_SETUP.md`). Paid frontier/Sarvam APIs are optional, off by default.
 - Config: **OmegaConf / PyYAML**. Notebooks: Jupyter.
 
 ## Repo conventions
@@ -37,8 +39,10 @@ Read `docs/ARCHITECTURE.md` for the design and the reasons behind it before writ
 ## Commands
 
 ```bash
-# install
+# install (Python deps)
 pip install -r requirements.txt
+# system deps: ffmpeg on PATH; Ollama installed + a model pulled (local LLM stage)
+ollama pull qwen3:4b   # shipped default; see docs/LOCAL_SETUP.md for the tier table
 
 # lint / type / test
 ruff check src tests
@@ -50,7 +54,7 @@ python -m src.pipeline --audio <path> --config config/default.yaml
 
 # run one stage in isolation (debugging)
 python -m src.diarization.run --audio <path>
-python -m src.asr.run --audio <path> --model tara
+python -m src.asr.run --audio <path> --model large-v3   # faster-whisper CT2 weights
 
 # benchmark + ablation (Deliverable 2)
 python -m src.evaluation.benchmark --suite config/ablation.yaml
@@ -62,7 +66,9 @@ Follow `PLAN.md` phase by phase. Build **vertical slices**: get a trivial end-to
 
 ## Gated models / secrets
 
-- `pyannote/speaker-diarization-community-1` and its `segmentation` dependency are **gated** — the user must accept conditions on Hugging Face and provide `HF_TOKEN`. Missing the *segmentation* agreement causes a 401; surface a clear error, don't retry silently.
+- `pyannote/speaker-diarization-community-1` and its `segmentation` dependency are **gated but free** — the user accepts the click-through conditions on Hugging Face and provides a free `HF_TOKEN`. Gated ≠ paid. Missing the *segmentation* agreement causes a 401; surface a clear error, don't retry silently.
+- `HF_TOKEN` is the **only** credential on the default path. faster-whisper and Ollama weights are open and need no token.
+- Optional paid backends (frontier/Sarvam APIs → `ANTHROPIC_API_KEY` etc.; pyannote precision-2 → `PYANNOTEAI_API_KEY`) are off by default. Do not read or require these keys on the default local path.
 - Never commit tokens. Read all secrets from environment variables. Document any new env var in `README.md`.
 
 ## When you're unsure

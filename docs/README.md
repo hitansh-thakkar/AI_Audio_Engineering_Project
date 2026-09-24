@@ -23,10 +23,10 @@ raw multi-speaker audio (.wav)
  [3] Separation         SepFormer/Conv-TasNet on OVERLAPPED regions only
         │
         ▼
- [4] ASR + Alignment    Whisper-large-v3 / Tara / IndicConformer → word-timestamped text
+ [4] ASR + Alignment    faster-whisper (int8) large-v3 / Tara / IndicConformer → word-timestamped text
         │
         ▼
- [5] LLM Post-Process   clean, normalize code-switch, tag topics, summarize
+ [5] LLM Post-Process   local LLM via Ollama → clean, normalize code-switch, tag topics, summarize
         │
         ▼
  structured report: executive summary + keyword tags + speaker-separated dialogue
@@ -50,24 +50,31 @@ The headline result is *final WER vs. pipeline configuration* — a direct, quan
 
 ## Quickstart
 
+**Runs fully locally on one consumer PC. Zero paid services** — no cloud inference, no per-token cost. The only credential is a **free** Hugging Face token (pyannote's licenses are click-through; *gated ≠ paid*). See [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md) for the full install, the hardware-tier table, and VRAM/RAM/disk budgeting.
+
 ```bash
 # 1. Environment
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Auth (gated models)
-export HF_TOKEN=...            # accept conditions for pyannote community-1 + segmentation
-# optional API ceilings:
-export PYANNOTEAI_API_KEY=...  # pyannote precision-2
-export SARVAM_API_KEY=...      # Sarvam Saaras-v3 ASR / Sarvam-M LLM
-export ANTHROPIC_API_KEY=...   # (or other) frontend LLM for post-processing
+# 2. System deps
+#   - ffmpeg on PATH (audio I/O)
+#   - Ollama for the local LLM stage:  https://ollama.com/download
+ollama pull qwen3:4b          # shipped default (see the tier table for bigger models)
 
-# 3. Run the pipeline on one clip
+# 3. Auth — ONE free token, no paid keys
+export HF_TOKEN=...            # free HF token; accept the click-through licenses for
+                              #   pyannote/speaker-diarization-community-1 AND pyannote/segmentation
+#   (faster-whisper + Ollama weights are open and need no token.)
+
+# 4. Run the pipeline on one clip (all inference on your machine)
 python -m src.pipeline --audio data/samples/panel_clip.wav --config config/default.yaml
 
-# 4. Run the benchmark / ablation suite
+# 5. Run the benchmark / ablation suite
 jupyter notebook notebooks/benchmark.ipynb
 ```
+
+No `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `SARVAM_API_KEY` / `PYANNOTEAI_API_KEY` are required or used on the default path. They map to **optional paid** backends only (see [`docs/MODELS.md`](docs/MODELS.md)); the zero-cost local stack never touches them.
 
 ## Repository layout
 
@@ -82,6 +89,7 @@ dhvani/
 ├── docs/
 │   ├── ARCHITECTURE.md    ← pipeline design, module contracts, data flow
 │   ├── MODELS.md          ← concrete model picks, HF repos, reasons, gotchas
+│   ├── LOCAL_SETUP.md     ← local install, hardware-tier table, VRAM/RAM/disk budget, troubleshooting
 │   ├── DATASETS.md        ← corpora, access, the "AIR-RS-DB" caveat
 │   └── EVALUATION.md      ← metrics, benchmark harness, ablation matrix
 ├── src/

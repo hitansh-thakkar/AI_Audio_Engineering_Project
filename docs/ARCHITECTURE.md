@@ -123,8 +123,8 @@ class RunManifest:
 | `preprocessing` | raw audio | `AudioClip` (16k mono, normalized) | (optional) Demucs vocal-stem / DNS denoiser |
 | `diarization` | `AudioClip` | `DiarizationResult` | pyannote community-1 (opt. precision-2) |
 | `separation` | `AudioClip` + overlap mask | `list[SeparatedSource]` | SepFormer / Conv-TasNet |
-| `asr` | speaker turns (+ separated sources) | `Transcript` | Whisper-large-v3 / Tara / IndicConformer; WhisperX align |
-| `postprocessing` | `Transcript` | `Report` | LLM (Sarvam-M / frontier API) |
+| `asr` | speaker turns (+ separated sources) | `Transcript` | faster-whisper (int8) large-v3 / Tara-CT2 / IndicConformer; WhisperX align |
+| `postprocessing` | `Transcript` | `Report` | local LLM via Ollama (qwen3 / gemma3 by tier) |
 | `evaluation` | manifests + refs | metrics, plots | jiwer, pyannote.metrics |
 
 See `docs/MODELS.md` for exact model IDs, reasons, and gotchas.
@@ -134,10 +134,11 @@ See `docs/MODELS.md` for exact model IDs, reasons, and gotchas.
 All behavior is driven by `config/default.yaml`. The ablation-relevant switches:
 
 - `diarization.source: real | oracle`
+- `diarization.backend: community1 | legacy31` (local, free) `| precision2` (optional paid API)
 - `separation.mode: none | overlap | everywhere`
 - `separation.backend: sepformer | convtasnet`
-- `asr.backend: whisper_large_v3 | tara | indicconformer | sarvam`
-- `llm.backend: anthropic | openai | google | sarvam_m | sarvam_api`
+- `asr.backend: faster_whisper | indicconformer` (with `asr.model` selecting large-v3 / Tara-CT2 / distil / medium / small)
+- `postprocessing.backend: ollama` (local, default) `| api` (optional paid)
 
 The ablation runner sweeps the first two axes (× separation backend) and records final + intermediate metrics per cell.
 
@@ -148,7 +149,7 @@ Errors must **flow, not halt** — the project measures propagation. Concretely:
 - Diarization returns 1 speaker → skip separation, transcribe whole clip, note it.
 - Separation output is low-energy/garbage → fall back to the un-separated overlapped segment, note it.
 - ASR returns empty on a segment → keep an empty `TranscriptSegment`, note it.
-- LLM/API unavailable → emit a minimal report from the raw transcript, note it.
+- Local LLM unavailable (Ollama not running / model not pulled) → emit a minimal report from the raw transcript, note it.
 
 Every degradation is appended to the relevant `StageResult.notes` and surfaces in the manifest.
 

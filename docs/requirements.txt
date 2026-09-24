@@ -6,26 +6,24 @@ soundfile
 librosa
 
 # Diarization
-pyannote.audio>=4.0        # requires Python 3.10+
+pyannote.audio>=4.0        # requires Python 3.10+; runs on CPU (free HF token, gated not paid)
 
 # Separation
 speechbrain>=1.0
 # asteroid                 # optional, for Conv-TasNet baseline
 
-# ASR + alignment
-transformers>=4.44
-faster-whisper
+# ASR + alignment (fully local)
+faster-whisper             # CTranslate2 Whisper runtime — int8 quant, CPU or GPU
+ctranslate2                # inference engine behind faster-whisper (also used to convert Tara)
+transformers>=4.44         # Tara / IndicConformer fallback path, model conversion
 whisperx                   # Whisper + wav2vec2 alignment + pyannote glue
-# nemo_toolkit[asr]        # optional, for IndicConformer (AI4Bharat NeMo fork)
+# nemo_toolkit[asr]        # optional, for IndicConformer (AI4Bharat NeMo fork) — heavy
 
 # Denoise (optional)
 demucs                     # music/vocal separation used ONLY as a denoiser
 
-# LLM post-processing (pick per backend)
-anthropic
-# openai
-# google-genai
-# sarvamai
+# LLM post-processing (fully local via Ollama — no paid APIs)
+ollama                     # Python client for a local Ollama server (http://localhost:11434)
 
 # Indic text normalization (REQUIRED for correct WER/CER)
 indic-nlp-library
@@ -35,7 +33,7 @@ jiwer
 pyannote.metrics
 torchmetrics
 rouge-score
-bert-score
+bert-score                 # downloads a free model (e.g. roberta-large) from HF on first use
 
 # Config / tooling
 omegaconf

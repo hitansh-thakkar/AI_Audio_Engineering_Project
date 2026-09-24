@@ -9,7 +9,7 @@ This is **Deliverable 2** and the intellectual core (Milestone 5: error propagat
 | Separation | **SI-SNRi**, **SDRi** | `torchmetrics` / `speechbrain` | Needs reference sources → synthetic mixtures. |
 | Diarization | **DER**, **JER**, speaker-count error | `pyannote.metrics` | Report with no forgiveness collar for honesty. |
 | ASR | **WER**, **CER** | `jiwer` | **Script-safe Indic normalizer only** (NFC + `indic-nlp-library`). Split by register: Hindi / English / code-switched. |
-| LLM summary | **ROUGE-L**, **BERTScore**, factual-consistency rate | `rouge-score`, `bert-score` | Consistency = fraction of report claims entailed by / overlapping the transcript. |
+| LLM summary | **ROUGE-L**, **BERTScore**, factual-consistency rate | `rouge-score`, `bert-score` | `bert-score` downloads a **free** model (e.g. `roberta-large`, ~1.4 GB) from HF on first use — one-time, then cached, fully local. Consistency = fraction of report claims entailed by / overlapping the transcript, checked with the same local Ollama model. |
 | System | **wall-clock latency**, **peak memory** per module | `RunManifest` | Required by the brief. Measure on a fixed clip + device. |
 
 ### The normalization rule (do not skip)

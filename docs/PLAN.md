@@ -45,7 +45,7 @@ Goal: real "who spoke when," with overlap detection and speaker counting.
 - [ ] `src/diarization/`: wrap `pyannote/speaker-diarization-community-1` (pyannote.audio 4.0). Read HF token from env; surface gated-model / 401 errors clearly (segmentation agreement gotcha).
 - [ ] Emit `DiarizationResult`: list of `SpeakerTurn(start, end, speaker_id)` + an overlap mask (regions flagged as overlapping speech).
 - [ ] Support `num_speakers` / `min_speakers` / `max_speakers` passthrough from config.
-- [ ] Optional `precision-2` backend via pyannoteAI API (one-line model swap) behind `diarization.backend: community1 | precision2`.
+- [ ] Optional `precision-2` backend behind `diarization.backend: community1 | precision2` — but note `precision2` is a **paid pyannoteAI cloud API**, off the free/default path. `community1` (local, CPU, free HF token) is the default.
 - [ ] **Oracle mode:** load ground-truth RTTM when available and expose it through the same interface (needed for the ablation).
 - [ ] Manual-clustering exercise (Milestone 2 pedagogy): a separate script that extracts pyannote embeddings and runs spectral clustering / GMM by hand. Keep it out of the production path; it exists to satisfy the milestone and to compare against the built-in clustering.
 
@@ -75,11 +75,12 @@ Goal: recover per-speaker audio in overlapped regions.
 
 Goal: code-switched transcripts with word-level timestamps.
 
-- [ ] `src/asr/`: pluggable backends behind one interface:
-  - `whisper-large-v3` (baseline, `openai/whisper-large-v3` via transformers or faster-whisper).
-  - `tara` (`Trelis/tara`, Hindi/Hinglish, mixed-code mode — loads like whisper-large-v3). **Recommended default for Hindi-belt audio.**
-  - `indicconformer` (`ai4bharat/indic-conformer-600m-multilingual` via AI4Bharat NeMo, for non-Hindi Indic languages).
-  - `sarvam` (Saaras-v3 API, optional commercial ceiling).
+- [ ] `src/asr/`: runtime is **faster-whisper (CTranslate2, int8)** — local, runs on GPU or CPU. `asr.model` selects the weights:
+  - `large-v3` (baseline; faster-whisper auto-downloads the CT2 conversion; int8 ≈ 2–4 GB VRAM). **Config default — runs out of the box.**
+  - Tara (`Trelis/tara`, Hindi/Hinglish, mixed-code mode) — convert to CT2 (`ct2-transformers-converter`) or run via transformers int8. **Recommended for Hindi-belt audio.**
+  - `distil-large-v3` / `medium` / `small` — fallbacks for weak hardware / tight disk.
+  - `indicconformer` (`ai4bharat/indic-conformer-600m-multilingual` via AI4Bharat NeMo, optional/heavy, for non-Hindi Indic languages).
+  - (The Sarvam Saaras-v3 API option has been removed — it is a paid cloud service, off the local path.)
 - [ ] Transcribe each single-speaker diarized turn; for overlapped regions, transcribe the separated streams from Phase 3.
 - [ ] Word-level alignment via WhisperX (`whisperx` wav2vec2 forced alignment) → `TranscriptSegment(start, end, text, speaker, words[])`.
 - [ ] Reconcile ASR timestamps with diarization using pyannote community-1's exclusive-speaker mode.
@@ -93,7 +94,7 @@ Goal: code-switched transcripts with word-level timestamps.
 
 Goal: clean, structured, human-readable report.
 
-- [ ] `src/postprocessing/`: LLM client behind an interface (`llm.backend: anthropic | openai | google | sarvam_m | sarvam_api`).
+- [ ] `src/postprocessing/`: LLM client behind an interface. Default `postprocessing.backend: ollama` — a **local** model served at `http://localhost:11434` (`postprocessing.model` picked by hardware tier, e.g. `qwen3:4b`/`qwen3:8b`/`gemma3:12b`; see `docs/LOCAL_SETUP.md`). An optional `api` backend (paid frontier/Sarvam) may sit behind the same interface but is off by default. This stage only cleans/summarizes text, so a 7–9B local model suffices.
 - [ ] Prompt framework that: normalizes code-switching, repairs noise-induced dropouts, identifies core topics (e.g., market-rate disputes, weather), and produces the report structure: **executive summary + keyword tags + speaker-separated dialogue**.
 - [ ] **Guardrail:** system prompt forbids introducing facts not present in the transcript; add a post-hoc factual-consistency check (e.g., entailment/keyword-overlap against the source transcript).
 - [ ] Do NOT use Airavata / OpenHathi (2023–24, Hindi-only, GPT-3.5-era).
