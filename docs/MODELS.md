@@ -25,6 +25,8 @@ Concrete, current model picks per stage — with the reasoning, the alternatives
 | ⚠️ Ceiling — **OPTIONAL PAID API** | `pyannote/speaker-diarization-precision-2` (pyannoteAI cloud API) | Higher accuracy + faster, but it is a **paid** hosted API (per-use credits, not local inference). **Not part of the free/default path.** Use only if you deliberately want to benchmark the accuracy gap and accept the cost. |
 | Legacy baseline (free, local) | `pyannote/speaker-diarization-3.1` | The well-understood 3.1 pipeline, local, for comparison. |
 
+**REQUIRED — hand-applied unsupervised clustering (proposal Milestone 2).** The proposal mandates clustering speaker embeddings yourself with **"specifically Spectral Clustering or Gaussian Mixture Models (GMMs)."** So the compliant path is: use pyannote to extract embeddings (and VAD/overlap), then run **your own Spectral Clustering or GMM** to form speaker clusters — no prior speaker templates. Expose it as `diarization.clustering: spectral | gmm`, with pyannote's end-to-end `builtin` clustering kept as an optional comparison. pyannote (or any specific framework) is only an *example* in the proposal ("a framework like pyannote.audio"); the **clustering method is the compulsory part.**
+
 **Gotchas.**
 - **Gated but free.** Accept the click-through conditions on Hugging Face for *both* `speaker-diarization-community-1` **and** its `segmentation` dependency, then use a free `HF_TOKEN`. Gated ≠ paid. Missing the segmentation agreement → 401. Fail loud.
 - Python **3.10+** required for pyannote.audio 4.0.
@@ -76,32 +78,44 @@ All of the above are **open weights running on your machine** — no API keys, n
 
 ---
 
-## Stage 5 — LLM post-processing (fully local via Ollama)
+## Stage 5 — LLM post-processing (default: Google Gemini API, free tier)
 
-This stage only **cleans and summarizes text** that ASR already produced — it does not need a frontier model. A **local 7–9B model via [Ollama](https://ollama.com)** (`http://localhost:11434`) is plenty, and it keeps the pipeline zero-cost and offline. All paid/frontier/Sarvam-API backends have been removed from the default path; the `api` backend remains only as an optional, clearly-labeled paid escape hatch.
+This stage only **cleans and summarizes text** that ASR already produced — it does not need a frontier model, but a capable one helps with Indic/code-switched cleanup. The default is the **Google Gemini API free tier**, which keeps the pipeline **zero-cost** while giving strong multilingual quality. It is a **cloud call**, so stage 5 is the one part of the pipeline that is not offline — a free API key, not a paid service. A fully-local Ollama backend stays available for offline runs; the paid `api` backend remains an optional escape hatch.
 
-**Pick the model by hardware tier.** Size is configurable (`postprocessing.model`) — do not hardcode it. Ollama tags below were verified against the official Ollama library; re-check before pulling (tags change).
+### Default — Gemini API (free tier)
+
+| Choice | ID (`postprocessing.model`) | Why |
+| --- | --- | --- |
+| **Default** | `gemini-2.0-flash` | Fast, free-tier, strong multilingual incl. Hindi/Indic + code-switch. Ample for cleanup/summarization. |
+| Alt (quality) | `gemini-2.5-flash` / `gemini-2.5-pro` | Higher quality if the free-tier limits allow; verify current free-tier availability and rate limits. |
+
+- **Key:** free from <https://aistudio.google.com/apikey>; read from `GEMINI_API_KEY` (env), never commit. Client: `google-genai`.
+- **Verify before wiring:** model tags and free-tier rate limits change — re-check AI Studio. Handle rate-limit / quota errors as a graceful degradation (fall back to a minimal report, note it in the manifest).
+- Size is configurable (`postprocessing.model`) — do not hardcode it.
+
+### Optional — fully-local Ollama (offline, zero cloud)
+
+Prefer a 100%-offline run? Set `postprocessing.backend: ollama` and pick a model by hardware tier. Ollama tags were verified against the official library; re-check before pulling (tags change).
 
 | Tier | Ollama model (tag) | Notes |
 | --- | --- | --- |
-| CPU-only / ≤6 GB VRAM | `qwen3:4b` **or** `phi4-mini` | Smallest sensible cleaners (~2.5 GB each). Runs on CPU or a 4 GB GPU. **Shipped default is `qwen3:4b`** (tuned for a 4 GB-VRAM laptop with limited disk). |
-| 8 GB VRAM *(reference default tier)* | `qwen3:8b` | ~5.2 GB. Apache-2.0, strong multilingual incl. Hindi. The recommended default if you have the VRAM/disk. |
+| CPU-only / ≤6 GB VRAM | `qwen3:4b` **or** `phi4-mini` | Smallest sensible cleaners (~2.5 GB each). Runs on CPU or a 4 GB GPU. Good fit for a 4 GB-VRAM laptop. |
+| 8 GB VRAM | `qwen3:8b` | ~5.2 GB. Apache-2.0, strong multilingual incl. Hindi. |
 | 12–16 GB VRAM | `gemma3:12b` **or** `qwen3:14b` | Gemma 3 12B (~8.1 GB, good summarization/multilingual, Gemma license) or Qwen3 14B (~9.3 GB, Apache-2.0). |
 | 24 GB+ VRAM | `gemma3:27b` **or** `qwen3:32b` | Largest local options (~17 GB / ~20 GB). **Sarvam-M only if it fits** (see caveat below). |
 
-**Pull + run:**
 ```bash
 ollama pull qwen3:4b          # or the tag for your tier
 ollama run qwen3:4b "hi"      # sanity check the local server
 ```
 
-**Licenses:** Qwen3 = **Apache 2.0**; Gemma 3 = Gemma license (free, some use terms); Phi-4-mini = MIT. All open-weights, local, no per-token cost.
+**Licenses (Ollama path):** Qwen3 = **Apache 2.0**; Gemma 3 = Gemma license (free, some use terms); Phi-4-mini = MIT. All open-weights, local, no per-token cost.
 
 > ⚠️ **Sarvam-M on Ollama is unverified.** There is **no official `sarvam-m` tag in the Ollama library**. Only community uploads exist (e.g. `mashriram/sarvam-m`, a ~25 GB q8 build of the 24B model) — unofficial, unvetted, and only viable on a 24 GB+ setup. Treat it as optional/experimental, not a default. Prefer `qwen3:32b` / `gemma3:27b` at that tier.
 
 **Do NOT use Airavata / OpenHathi** — 2023–24, Hindi-only, GPT-3.5-era. Poor fit for 2026 cleanup/summarization.
 
-**Optional PAID escape hatch (`postprocessing.backend: api`).** A frontier or Sarvam cloud API can be wired behind the same interface if you *choose* to and accept the cost. It is off by default, requires its own API key, and is **not** part of the free/local stack. Do not make it a default value.
+**Optional PAID escape hatch (`postprocessing.backend: api`).** A frontier or Sarvam cloud API can be wired behind the same interface if you *choose* to and accept the cost. It is off by default, requires its own API key, and is **not** part of the free stack. Do not make it a default value.
 
 **Prompt requirements:**
 - Force structured output: **executive summary + keyword tags + speaker-separated dialogue**.
@@ -120,7 +134,7 @@ models:
   separation:   speechbrain/sepformer-wsj02mix
   asr:          large-v3                                   # faster-whisper CT2 (int8); Tara-CT2 for Hindi/Hinglish
   align:        whisperx
-  llm:          qwen3:4b                                   # local Ollama; scale per tier (qwen3:8b / gemma3:12b / qwen3:32b ...)
+  llm:          gemini-2.0-flash                           # Gemini API free tier (default); optional local Ollama: qwen3:4b / qwen3:8b / ...
 ```
 
-Everything above is open-weights running locally. The only credential is a free HF token for pyannote's gated (not paid) licenses.
+The acoustic stack is open-weights running locally; the LLM stage calls the Gemini API free tier by default (optional local Ollama for offline). The two credentials are both free: an HF token for pyannote's gated (not paid) licenses, and a Gemini API key.

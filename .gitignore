@@ -1,0 +1,31 @@
+# Secrets — never commit real keys
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Pipeline outputs / large data (keep dhvani_eval/, it's the curated eval set)
+outputs/
+data/
+models/
+
+# Proposal / private docs (not for the repo)
+Audio_Engineering_AI_Project_Proposal.docx
+*.docx
+*.doc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

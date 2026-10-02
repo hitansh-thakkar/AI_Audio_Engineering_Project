@@ -1,0 +1,64 @@
+# Dhvani — default pipeline configuration
+# Every behavioral knob lives here. Code reads from config; never hardcode model IDs.
+
+run:
+  seed: 42
+  device: cpu             # cuda | cpu
+  output_dir: outputs/
+  save_intermediate: true # dump per-stage artifacts for debugging/eval
+  order: diar_first       # diar_first (default, our design) | sep_first (literal proposal baseline)
+
+preprocessing:
+  target_sample_rate: 16000
+  mono: true
+  normalize: peak         # peak | lufs | none
+  denoise: none           # none | demucs | dns  (demucs = music/vocal split, NOT speaker separation)
+  trim_silence: true
+  trim_top_db: 30
+  chunk_seconds: 120      # split long files for the demo
+
+diarization:
+  source: real            # real | oracle   (oracle loads ground-truth RTTM — for the ablation)
+  backend: community1     # community1 (free, local) | legacy31 (free, local) | precision2 (OPTIONAL PAID API)
+  model: pyannote/speaker-diarization-community-1
+  clustering: spectral    # REQUIRED (proposal M2): spectral | gmm = hand-applied clustering of embeddings | builtin = pyannote end-to-end
+  emit_timeline_json: true  # REQUIRED M2 deliverable: time->speaker timeline JSON alongside the RTTM
+  embedding: auto         # auto = pyannote if available else MFCC-stats fallback
+  num_speakers: null
+  min_speakers: null
+  max_speakers: null
+  rttm_dir: null          # used when source: oracle (dir of <clip_id>.rttm)
+
+separation:
+  mode: overlap           # none | overlap | everywhere   (everywhere = ablation, expected to hurt)
+  backend: sepformer      # sepformer | resepformer | convtasnet
+  model: speechbrain/sepformer-wsj02mix
+  model_sample_rate: 8000 # checkpoints are 8 kHz; resample in/out
+  max_speakers_supported: 2   # documented hard limit
+
+asr:
+  backend: faster_whisper # faster_whisper (local, default) | indicconformer (optional, heavy NeMo)
+  model: large-v3
+  device: cpu
+  compute_type: int8
+  align: true
+  align_backend: whisperx
+  normalizer: indic_script_safe   # NFC + indic-nlp-library
+
+postprocessing:
+  backend: gemini         # gemini (free API, default) | ollama (OPTIONAL local) | api (OPTIONAL PAID)
+  model: gemini-2.5-flash
+  api_key_env: GEMINI_API_KEY
+  host: http://localhost:11434   # used only by the optional ollama backend
+  structured_output: true
+  factual_consistency_check: true
+  forbid_new_facts: true
+
+evaluation:
+  metrics:
+    separation: [si_snri, sdri]
+    diarization: [der, jer, speaker_count_error]
+    asr: [wer, cer]
+    summary: [rouge_l, bertscore, factual_consistency]
+  measure_latency: true
+  measure_peak_memory: true

@@ -1,6 +1,6 @@
-# Local Setup — Fully Local, Zero Paid Services
+# Local Setup — Zero Paid Services
 
-Everything in this pipeline runs on **one consumer PC** with **no paid APIs, no cloud inference, and no per-token cost**. The only credential you need is a **free** Hugging Face token, and that is only because pyannote's licenses are click-through (gated ≠ paid). This document covers install, the hardware-tier table, VRAM/RAM/disk budgeting, and troubleshooting.
+This pipeline runs on **one consumer PC** with **no paid APIs and no per-token cost**. The acoustic stack (preprocess → diarize → separate → ASR) is fully local and offline. The one cloud touch is the LLM post-processing stage (Stage 5), which by default calls the **Google Gemini API free tier** — a free key, not a paid service. You need **two free credentials**: a Hugging Face token (pyannote's click-through licenses; gated ≠ paid) and a Gemini API key. Want a 100%-offline run? Switch Stage 5 to the optional local Ollama backend (§2.3). This document covers install, the hardware-tier table, VRAM/RAM/disk budgeting, and troubleshooting.
 
 ---
 
@@ -10,12 +10,13 @@ Everything in this pipeline runs on **one consumer PC** with **no paid APIs, no 
 | --- | --- | --- |
 | **Python 3.10+** + `requirements.txt` | the pipeline itself | free |
 | **ffmpeg** (on PATH) | audio decode/resample for Whisper & torchaudio | free |
-| **Ollama** + one model | local LLM post-processing (Stage 5) | free, local |
+| **Gemini API** (`google-genai`) | LLM post-processing (Stage 5), default | free tier — needs a free `GEMINI_API_KEY` (cloud call) |
+| **Ollama** + one model *(optional)* | fully-offline LLM post-processing (Stage 5) | free, local — only if you opt out of Gemini |
 | **faster-whisper** weights | ASR runtime (Stage 4), int8 CTranslate2 | free, auto-downloaded |
 | **pyannote** community-1 + segmentation | diarization (Stage 2), runs on CPU | free — needs a free HF token + click-through licenses |
 | **bert-score** model | summary metric (Stage 6) | free, auto-downloaded once (~1.4 GB) |
 
-No `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `SARVAM_API_KEY` / `PYANNOTEAI_API_KEY` is required or used on the default path.
+The only keys on the default path are the free `HF_TOKEN` and `GEMINI_API_KEY`. No `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `SARVAM_API_KEY` / `PYANNOTEAI_API_KEY` is required or used.
 
 ---
 
@@ -34,14 +35,24 @@ pip install -r requirements.txt
 - **Linux:** `sudo apt install ffmpeg`
 - Verify: `ffmpeg -version`.
 
-### 2.3 Ollama (local LLM)
+### 2.3 LLM backend (Stage 5)
+
+**Default — Gemini API (free tier):**
+1. Get a free key at <https://aistudio.google.com/apikey> (Google account; no billing required for the free tier).
+2. Export it:
+   ```bash
+   export GEMINI_API_KEY=...    # Windows PowerShell: $env:GEMINI_API_KEY="..."
+   ```
+3. The client (`google-genai`) is already in `requirements.txt`. `postprocessing.model` (`config/default.yaml`) selects the model (default `gemini-2.0-flash`). This stage makes a **cloud** call — the only non-local part of the pipeline.
+
+**Optional — Ollama (fully offline, no cloud, no key):** set `postprocessing.backend: ollama` in the config, then:
 1. Install from <https://ollama.com/download> (Windows/macOS/Linux). It runs a local server at `http://localhost:11434`.
 2. Pull the model for your tier (see the table in §3):
    ```bash
-   ollama pull qwen3:4b        # shipped default; swap per your hardware
+   ollama pull qwen3:4b        # swap per your hardware
    ollama run qwen3:4b "ok?"   # sanity check
    ```
-3. The pipeline's `postprocessing.host` (`config/default.yaml`) points at that server — no key, no account.
+3. `postprocessing.host` (`config/default.yaml`) points at that server — no key, no account.
 
 ### 2.4 faster-whisper (local ASR)
 Nothing to pre-install beyond `pip` — `faster-whisper` downloads the int8 CTranslate2 weights for `asr.model` on first run. To pre-warm:
@@ -67,13 +78,15 @@ then set `asr.model: models/tara-ct2`. (No official prebuilt Tara-CT2 build is p
 
 ---
 
-## 3. Hardware-tier table (LLM stage)
+## 3. Hardware-tier table (LLM stage — Ollama backend only)
+
+> The default **Gemini** backend runs in the cloud and needs **no local VRAM/RAM/disk** for the LLM. This table applies only if you opt into the fully-offline **Ollama** backend (§2.3).
 
 The LLM stage only cleans and summarizes text, so a **7–9B local model is plenty**. Pick by VRAM. Model size is configurable via `postprocessing.model` — don't hardcode it. Tags below were verified against the official Ollama library; **re-check before pulling, tags change.**
 
 | Tier | Ollama model | On-disk (approx) | License | Notes |
 | --- | --- | --- | --- | --- |
-| **CPU-only / ≤6 GB VRAM** | `qwen3:4b` or `phi4-mini` | ~2.5 GB | Apache-2.0 / MIT | Smallest sensible cleaners. **Shipped default = `qwen3:4b`.** |
+| **CPU-only / ≤6 GB VRAM** | `qwen3:4b` or `phi4-mini` | ~2.5 GB | Apache-2.0 / MIT | Smallest sensible cleaners. **Recommended Ollama model = `qwen3:4b`.** |
 | **8 GB VRAM** *(reference default tier)* | `qwen3:8b` | ~5.2 GB | Apache-2.0 | Strong multilingual incl. Hindi. Recommended if you have the VRAM/disk. |
 | **12–16 GB VRAM** | `gemma3:12b` or `qwen3:14b` | ~8.1 / ~9.3 GB | Gemma / Apache-2.0 | Better summarization/multilingual. |
 | **24 GB+ VRAM** | `gemma3:27b` or `qwen3:32b` | ~17 / ~20 GB | Gemma / Apache-2.0 | Largest local options. Sarvam-M **only if it fits** (unverified — see below). |
@@ -94,9 +107,11 @@ That is the **CPU-only / ≤6 GB VRAM** tier. Recommended, budget-fitting stack:
 | --- | --- | --- | --- |
 | Diarization | pyannote community-1 (CPU) | ~0.5 GB | CPU RAM; a few hundred MB |
 | ASR | faster-whisper `large-v3`, `int8`, `device: cuda` | ~1.5 GB | ~2–4 GB VRAM (fits 4 GB); use `cpu` if OOM |
-| LLM | Ollama `qwen3:4b` | ~2.5 GB | ~3 GB (partial GPU offload + RAM) |
+| LLM | **Gemini API (default)** | 0 (cloud) | 0 local — free-tier API call |
+| LLM (if offline) | Ollama `qwen3:4b` | ~2.5 GB | ~3 GB (partial GPU offload + RAM) |
 | Metrics | bert-score model | ~1.4 GB | one-time, cached |
-| **Total** | | **~5.9 GB** | fits your budget |
+| **Total (Gemini default)** | | **~3.4 GB** | comfortably within budget |
+| **Total (offline Ollama)** | | **~5.9 GB** | fits your budget |
 
 **If disk/VRAM is tight:**
 - ASR: switch `asr.model` to `distil-large-v3` (~0.75 GB) or `small`, or set `asr.device: cpu`, `compute_type: int8`.
@@ -115,11 +130,13 @@ That is the **CPU-only / ≤6 GB VRAM** tier. Recommended, budget-fitting stack:
 | Symptom | Cause / fix |
 | --- | --- |
 | `401` on diarization load | You didn't accept **both** licenses (community-1 **and** segmentation), or `HF_TOKEN` isn't exported. Accept both, re-export the token. |
-| `Connection refused` on LLM stage | Ollama server not running. Start it (the desktop app, or `ollama serve`) and confirm `postprocessing.host` = `http://localhost:11434`. |
-| `model 'qwen3:4b' not found` | Not pulled yet: `ollama pull qwen3:4b`. Verify the tag on <https://ollama.com/library>. |
+| `401`/`PERMISSION_DENIED` on LLM stage (Gemini) | `GEMINI_API_KEY` missing/invalid. Create a free key at <https://aistudio.google.com/apikey> and re-export it. |
+| `429`/quota exhausted on LLM stage (Gemini) | Free-tier rate/day limit hit. Wait for the window to reset, switch to a lighter `postprocessing.model`, or use the offline Ollama backend. |
+| `Connection refused` on LLM stage (Ollama) | Ollama server not running. Start it (the desktop app, or `ollama serve`) and confirm `postprocessing.host` = `http://localhost:11434`. |
+| `model 'qwen3:4b' not found` (Ollama) | Not pulled yet: `ollama pull qwen3:4b`. Verify the tag on <https://ollama.com/library>. |
 | CUDA out of memory (ASR) | Drop to `compute_type: int8`, use a smaller `asr.model` (`distil-large-v3`/`small`), or set `asr.device: cpu`. |
 | `ffmpeg not found` | Install ffmpeg and reopen the shell so PATH updates (§2.2). |
-| Very slow LLM stage | Model too big for VRAM → heavy CPU offload. Use a smaller tier model, or accept the slower run. |
+| Very slow LLM stage (Ollama) | Model too big for VRAM → heavy CPU offload. Use a smaller tier model, or accept the slower run. (Gemini default avoids this — it runs in the cloud.) |
 | Devanagari WER looks absurdly high | You used Whisper's default normalizer. Must be the script-safe Indic normalizer (NFC + `indic-nlp-library`) — see `docs/EVALUATION.md`. |
 | Out of disk mid-download | Free space or move caches. `ollama rm <model>` and `huggingface-cli delete-cache` reclaim space; prefer smaller tier models (§4). |
 
@@ -127,4 +144,4 @@ That is the **CPU-only / ≤6 GB VRAM** tier. Recommended, budget-fitting stack:
 
 ## 6. What is *not* here (by design)
 
-No paid inference, ever, on the default path. The paid options that exist elsewhere in the docs — pyannote **precision-2** (cloud API) and the **`api` LLM backend** (frontier/Sarvam) — are optional accuracy ceilings you must opt into and pay for yourself. Leaving the config untouched keeps the run 100% local and 100% free.
+No paid inference, ever, on the default path. The paid options that exist elsewhere in the docs — pyannote **precision-2** (cloud API) and the **`api` LLM backend** (frontier/Sarvam) — are optional accuracy ceilings you must opt into and pay for yourself. Leaving the config untouched keeps the run **100% free**; it is also fully local *except* the Stage-5 Gemini call. For a **100% offline** run, switch `postprocessing.backend` to `ollama` (§2.3).

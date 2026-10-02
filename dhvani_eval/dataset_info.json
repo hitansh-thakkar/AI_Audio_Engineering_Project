@@ -1,0 +1,28 @@
+{
+  "name": "dhvani_eval",
+  "built_from": "indic_multispeaker_10 (ai4bharat/IndicVoices, valid split)",
+  "seed": 42,
+  "sample_rate": 16000,
+  "git_sha": "04bd136713e7e9a96464c992204373c289fc4919",
+  "subsets": {
+    "sequential": "multi-speaker clips, no overlap (diarization + per-language ASR baseline)",
+    "sources": "isolated single-speaker utterances (clean per-language ASR; mixture atoms)",
+    "overlap_mixtures": "synthetic 2-speaker overlaps + ground-truth sources (separation, SI-SNRi/SDRi)",
+    "registers": "real English (40) + inter-sentential Hindi-English code-switch (24, constructed from real speech) from commotion/Bilingual-Hindi-English-ASR-Lt-30; fills the pure-English and code-switch WER registers",
+    "vaani": "real Project Vaani slice (24 clips across Hindi/Bengali/Assamese; 3 transcribed) — accent/dialect diversity + noise",
+    "nirantar": "real Nirantar slice (24 clips, official E2E-prefix via fetch_nirantar.py; audio-only) — transcribed-speech corpus"
+  },
+  "languages": [
+    "as",
+    "bn",
+    "en",
+    "hi"
+  ],
+  "known_gap": "Registers added via fetch_codeswitch.py: pure-English and (inter-sentential) code-switch are real speech. Remaining upgrade: single-speaker INTRA-sentential code-mix needs a gated MUCS set (accept its license, set MUCS_REPO).",
+  "required_corpora_status": {
+    "IndicVoices": "USED — base of sequential/sources/overlap_mixtures",
+    "Vaani": "USED — vaani/ slice (24 clips) via fetch_vaani.py",
+    "Nirantar": "USED — nirantar/ slice (24 clips) via fetch_nirantar.py (official E2E-prefix; full set ~198 GB)",
+    "AIR-RS-DB": "PENDING — IEEE DataPort subscription download by user; ingest via ingest_air_rs_db.py"
+  }
+}

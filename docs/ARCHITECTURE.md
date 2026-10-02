@@ -10,7 +10,7 @@ The project brief prescribes **separate → diarize → transcribe**. We invert 
 
 2. **Separation front-ends assume a fixed speaker count** (usually 2). Radio panels have an unknown, variable number of speakers. Diarization is the component actually built to estimate speaker count.
 
-3. **pyannote already does most of Milestone 2 end-to-end** — VAD, overlap detection, embedding, clustering. It also (in community-1) has an exclusive-speaker mode designed to reconcile with ASR timestamps. So diarization is the natural backbone; separation becomes a *targeted repair* for the specific regions where speakers actually overlap.
+3. **pyannote already does most of Milestone 2 end-to-end** — VAD, overlap detection, embedding, clustering. It also (in community-1) has an exclusive-speaker mode designed to reconcile with ASR timestamps. So diarization is the natural backbone; separation becomes a *targeted repair* for the specific regions where speakers actually overlap. **For Milestone-2 compliance we still perform the clustering step ourselves** — Spectral Clustering / GMM over pyannote embeddings (`diarization.clustering: spectral | gmm`) — rather than leaning on its built-in clusterer, which we keep only as a `builtin` comparison.
 
 This ordering is also what makes the **error-propagation study** (Milestone 5 / Deliverable 2) clean: with diarization as the backbone, we can substitute *oracle* diarization and measure exactly how much downstream error is caused by diarization mistakes vs. everything else.
 
@@ -24,7 +24,7 @@ AudioClip
   → Diarization          → DiarizationResult { turns[], overlap_mask }
   → Separation (overlap) → list[SeparatedSource] for overlapped regions, mapped to speakers
   → ASR + Alignment      → Transcript { segments[] with words[] and speaker }
-  → LLM Post-Processing   → Report { summary, tags[], dialogue[] }
+  → LLM Post-Processing   → Report { summary, tags[], dialogue[] }   (Gemini API, free tier)
   + RunManifest           (timing, memory, versions, seeds, config hash — accumulated across stages)
 ```
 
@@ -124,7 +124,7 @@ class RunManifest:
 | `diarization` | `AudioClip` | `DiarizationResult` | pyannote community-1 (opt. precision-2) |
 | `separation` | `AudioClip` + overlap mask | `list[SeparatedSource]` | SepFormer / Conv-TasNet |
 | `asr` | speaker turns (+ separated sources) | `Transcript` | faster-whisper (int8) large-v3 / Tara-CT2 / IndicConformer; WhisperX align |
-| `postprocessing` | `Transcript` | `Report` | local LLM via Ollama (qwen3 / gemma3 by tier) |
+| `postprocessing` | `Transcript` | `Report` | Google Gemini API, free tier (opt. local Ollama) |
 | `evaluation` | manifests + refs | metrics, plots | jiwer, pyannote.metrics |
 
 See `docs/MODELS.md` for exact model IDs, reasons, and gotchas.
@@ -135,10 +135,11 @@ All behavior is driven by `config/default.yaml`. The ablation-relevant switches:
 
 - `diarization.source: real | oracle`
 - `diarization.backend: community1 | legacy31` (local, free) `| precision2` (optional paid API)
+- `diarization.clustering: spectral | gmm` (**required** hand-applied unsupervised clustering of embeddings — proposal Milestone 2) `| builtin` (pyannote's end-to-end clustering, optional comparison)
 - `separation.mode: none | overlap | everywhere`
 - `separation.backend: sepformer | convtasnet`
 - `asr.backend: faster_whisper | indicconformer` (with `asr.model` selecting large-v3 / Tara-CT2 / distil / medium / small)
-- `postprocessing.backend: ollama` (local, default) `| api` (optional paid)
+- `postprocessing.backend: gemini` (free API, default) `| ollama` (optional local) `| api` (optional paid)
 
 The ablation runner sweeps the first two axes (× separation backend) and records final + intermediate metrics per cell.
 
@@ -149,7 +150,7 @@ Errors must **flow, not halt** — the project measures propagation. Concretely:
 - Diarization returns 1 speaker → skip separation, transcribe whole clip, note it.
 - Separation output is low-energy/garbage → fall back to the un-separated overlapped segment, note it.
 - ASR returns empty on a segment → keep an empty `TranscriptSegment`, note it.
-- Local LLM unavailable (Ollama not running / model not pulled) → emit a minimal report from the raw transcript, note it.
+- LLM unavailable (Gemini API error / rate-limit / no key, or Ollama not running) → emit a minimal report from the raw transcript, note it.
 
 Every degradation is appended to the relevant `StageResult.notes` and surfaces in the manifest.
 
