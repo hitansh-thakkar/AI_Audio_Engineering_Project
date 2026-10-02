@@ -1,0 +1,12 @@
+{
+  "dataset": "ai4bharat/IndicVoices",
+  "source_split": "valid",
+  "clips": 10,
+  "languages_per_clip": [
+    "assamese",
+    "bengali",
+    "hindi"
+  ],
+  "synthetic_stitched": true,
+  "note": "Source recordings are independent utterances; timestamps describe the generated clip, not native conversation turns."
+}
