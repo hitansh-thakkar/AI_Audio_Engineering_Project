@@ -1,6 +1,9 @@
 """Phase-0 acceptance: end-to-end run produces a Report + RunManifest with all five stages."""
 import json
 
+from omegaconf import OmegaConf
+
+from src.config import load_config
 from src.pipeline import run_pipeline
 
 
@@ -24,3 +27,19 @@ def test_end_to_end_smoke(sequential_clip, tmp_path):
     report = json.loads((out_dir / "report.json").read_text(encoding="utf-8"))
     assert "summary" in report and "dialogue" in report
     assert len(report["dialogue"]) >= 1
+
+
+def test_chunking_triggers_end_to_end(sequential_clip, tmp_path):
+    # force a tiny window so a ~14 s clip is processed as multiple chunks
+    cfg = load_config("config/default.yaml")
+    cfg.preprocessing.chunk_seconds = 5
+    cfg_path = tmp_path / "chunked.yaml"
+    OmegaConf.save(cfg, cfg_path)
+
+    manifest = run_pipeline(str(sequential_clip), config=str(cfg_path), out=str(tmp_path))
+    names = [s.name for s in manifest.stages]
+    assert names == ["preprocessing", "diarization", "separation", "asr", "postprocessing"]
+    # the chunked stages record how many windows were processed
+    diar = next(s for s in manifest.stages if s.name == "diarization")
+    assert any("chunks of" in n for n in diar.notes)
+    assert (tmp_path / sequential_clip.stem / "timeline.json").exists()

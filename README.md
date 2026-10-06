@@ -4,7 +4,7 @@ A multi-stage audio-processing pipeline that takes **chaotic, multi-speaker, cod
 
 This is a **systems-engineering + measurement** project, not a model-training project. It chains pretrained specialists — speech separation, speaker diarization, code-switched ASR, LLM post-processing — and, critically, **measures how errors propagate** from the acoustic front-end to the final text.
 
-> **Status: mid-project.** The full pipeline runs end-to-end today. The acoustic front-end (preprocessing, diarization with hand-rolled clustering, separation) is implemented with real algorithms + metrics; ASR and LLM post-processing are structurally-valid **stubs** pending the second half. `ruff` + `mypy` clean, **17 tests pass**.
+> **Status: mid-project.** The full pipeline runs end-to-end today. The acoustic front-end (preprocessing, diarization with hand-rolled clustering, separation) is implemented with real algorithms + metrics; ASR and LLM post-processing are structurally-valid **stubs** pending the second half. `ruff` + `mypy` clean, **21 tests pass**.
 
 ---
 
@@ -98,7 +98,7 @@ AI_Audio_Engineering_Project/
 │   ├── asr/                     ← ASR stub (post-midsem: faster-whisper / Tara + WhisperX)
 │   ├── postprocessing/          ← LLM stub (post-midsem: Gemini report + guardrail)
 │   └── evaluation/              ← DER, SI-SNRi/SDRi, WER/CER, script-safe normalizer
-├── tests/                       ← 17 tests (unit + end-to-end smoke)
+├── tests/                       ← 21 tests (unit + end-to-end smoke)
 ├── dhvani_eval/                 ← curated eval dataset + reproducible build/fetch scripts
 ├── indic_multispeaker_10/       ← raw source clips (IndicVoices-derived)
 └── outputs/                     ← per-run reports + manifests (gitignored)

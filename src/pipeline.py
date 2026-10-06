@@ -9,7 +9,10 @@ CLI:  python -m src.pipeline --audio <path> [--config config/default.yaml] [--ou
 from __future__ import annotations
 
 import argparse
+import gc
 import json
+import time
+import tracemalloc
 from dataclasses import asdict
 from pathlib import Path
 
@@ -17,10 +20,18 @@ from .asr import ASRStub
 from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
 from .postprocessing import PostProcessorStub
-from .preprocessing import Preprocessor
+from .preprocessing import Preprocessor, chunk_audio
 from .separation import Separator
 from .stage import measure, set_seeds
-from .types import Report, RunManifest, StageResult
+from .types import (
+    DiarizationResult,
+    Report,
+    RunManifest,
+    SpeakerTurn,
+    StageResult,
+    Transcript,
+    TranscriptSegment,
+)
 
 
 def _report_to_dict(report: Report) -> dict:
@@ -44,6 +55,63 @@ def _report_to_markdown(report: Report, clip_id: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _timed(fn):
+    gc.collect()
+    tracemalloc.start()
+    t0 = time.perf_counter()
+    out = fn()
+    dt = time.perf_counter() - t0
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return out, dt, peak / (1024 * 1024)
+
+
+def _run_chunked(chunks, chunk_seconds, diar, sep, asr, stages):
+    """Process a long clip window-by-window: offset each chunk's timestamps and accumulate
+    one StageResult per stage (summed time, peak memory, notes). Speaker labels are per-chunk
+    — cross-chunk speaker linking is future work (noted in the manifest)."""
+    names = ("diarization", "separation", "asr")
+    acc_t: dict[str, float] = {n: 0.0 for n in names}
+    acc_m: dict[str, float] = {n: 0.0 for n in names}
+    acc_notes: dict[str, list[str]] = {n: [] for n in names}
+    all_turns: list[SpeakerTurn] = []
+    all_overlaps: list[tuple[float, float]] = []
+    all_segments: list[TranscriptSegment] = []
+    all_separated = []
+
+    for idx, ch in enumerate(chunks):
+        off = idx * chunk_seconds
+        dnotes: list[str] = []
+        dres, dt, dm = _timed(lambda ch=ch, n=dnotes: diar.run(ch, n))
+        snotes: list[str] = []
+        separated, st, sm = _timed(lambda ch=ch, d=dres, n=snotes: sep.run(ch, d.overlap_regions, n))
+        anotes: list[str] = []
+        tr, at, am = _timed(lambda ch=ch, d=dres, s=separated, n=anotes: asr.run(ch, d, s, n))
+
+        for name, dur, mem, ns in (("diarization", dt, dm, dnotes), ("separation", st, sm, snotes),
+                                   ("asr", at, am, anotes)):
+            acc_t[name] += dur
+            acc_m[name] = max(acc_m[name], mem)
+            acc_notes[name] += [f"chunk{idx}: {x}" for x in ns]
+
+        all_turns += [SpeakerTurn(t.start + off, t.end + off, t.speaker) for t in dres.turns]
+        all_overlaps += [(s + off, e + off) for (s, e) in dres.overlap_regions]
+        all_separated += separated
+        all_segments += [TranscriptSegment(s.start + off, s.end + off, s.speaker, s.text, s.words, s.lang)
+                         for s in tr.segments]
+
+    note = f"processed {len(chunks)} chunks of <= {chunk_seconds:g}s (per-chunk speaker labels)"
+    versions = {"diarization": diar.version, "separation": sep.version, "asr": asr.version}
+    for name in names:
+        stages.append(StageResult(name=name, version=versions[name],
+                                  wall_time_s=round(acc_t[name], 4), peak_mem_mb=round(acc_m[name], 2),
+                                  notes=acc_notes[name] + [note]))
+    diarization = DiarizationResult(
+        turns=sorted(all_turns, key=lambda t: t.start), overlap_regions=all_overlaps,
+        num_speakers=len({t.speaker for t in all_turns}))
+    return diarization, all_separated, Transcript(segments=all_segments)
+
+
 def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | None = None) -> RunManifest:
     cfg = load_config(config)
     seeds = set_seeds(int(cfg.run.seed))
@@ -65,27 +133,35 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         pre.load()
         clip = pre.run(audio, notes)
 
-    # --- Stage 2: diarization (backbone)
+    # --- long files are processed in <= chunk_seconds windows (one window for short clips)
+    chunk_seconds = float(cfg.preprocessing.chunk_seconds)
+    chunks = chunk_audio(clip, chunk_seconds)
+
     diar = Diarizer(cfg.diarization, cfg.run)
-    with measure(diar.name, diar.version, stages) as notes:
-        diar.load()
-        diarization = diar.run(clip, notes)
+    diar.load()
+    sep = Separator(cfg.separation)
+    sep.load()
+    asr = ASRStub(cfg.asr)
+    asr.load()
+
+    if len(chunks) == 1:
+        # --- Stage 2: diarization (backbone)
+        with measure(diar.name, diar.version, stages) as notes:
+            diarization = diar.run(clip, notes)
+        # --- Stage 3: separation (surgical)
+        with measure(sep.name, sep.version, stages) as notes:
+            separated = sep.run(clip, diarization.overlap_regions, notes)
+        # --- Stage 4: ASR + alignment (stub pre-midsem)
+        with measure(asr.name, asr.version, stages) as notes:
+            transcript = asr.run(clip, diarization, separated, notes)
+    else:
+        diarization, separated, transcript = _run_chunked(
+            chunks, chunk_seconds, diar, sep, asr, stages)
+
     if bool(cfg.diarization.emit_timeline_json):
         (out_dir / "timeline.json").write_text(
             json.dumps(diarization.to_timeline_json(), ensure_ascii=False, indent=2), encoding="utf-8"
         )
-
-    # --- Stage 3: separation (surgical)
-    sep = Separator(cfg.separation)
-    with measure(sep.name, sep.version, stages) as notes:
-        sep.load()
-        separated = sep.run(clip, diarization.overlap_regions, notes)
-
-    # --- Stage 4: ASR + alignment (stub pre-midsem)
-    asr = ASRStub(cfg.asr)
-    with measure(asr.name, asr.version, stages) as notes:
-        asr.load()
-        transcript = asr.run(clip, diarization, separated, notes)
 
     # --- Stage 5: LLM post-processing (stub pre-midsem)
     post = PostProcessorStub(cfg.postprocessing)

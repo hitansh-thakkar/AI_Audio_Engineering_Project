@@ -13,7 +13,7 @@ into one slide. Pull real numbers/figures from the repo paths cited — **do not
 - **Suggested length:** 14–16 slides, 16:9.
 - **Tone:** technical, honest about what is real vs. stubbed. No overclaiming.
 - **Theme:** clean, high-contrast, one idea per slide. Monospace for code/paths. Accent color for the "diarization-first" idea and the compulsory-compliance ticks.
-- **Repo facts to trust:** pipeline runs end-to-end today; 17 unit/integration tests pass; `ruff` + `mypy` clean. Preliminary real diarization DER ≈ 0.30 on the eval set.
+- **Repo facts to trust:** pipeline runs end-to-end today; 21 unit/integration tests pass; `ruff` + `mypy` clean. Preliminary real diarization DER ≈ 0.30 on the eval set.
 
 ---
 
@@ -116,7 +116,7 @@ Two-column table (source of truth: `CLAUDE.md` rule 7, `PLAN.md`):
 - SI-SNRi/SDRi verified: perfect-estimate > mixture baseline (`tests/test_metrics.py`).
 - DER metric verified: identical ref/hyp → 0.0, label-permutation invariant (Hungarian mapping).
 - **End-to-end audit:** the full pipeline was run across every subset (real sequential, oracle mixture, Vaani, Nirantar) — all 5 stages execute, outputs (report/timeline/manifest) are well-formed, and the oracle-mixture run correctly surfaces 1 overlap region and triggers separation. All audit checks pass.
-- Visual: a small green "17/17 tests pass + audit OK" badge + a table of the key asserted properties.
+- Visual: a small green "21/21 tests pass + audit OK" badge + a table of the key asserted properties.
 
 ## 12. System benchmark — instrumentation (Deliverable 2 groundwork)
 - Every stage is wrapped in a timer + peak-memory tracker; results land in a per-run `RunManifest` (git SHA, config hash, seeds, per-stage wall-time + peak MB, degradation notes).
@@ -127,7 +127,7 @@ Two-column table (source of truth: `CLAUDE.md` rule 7, `PLAN.md`):
 ## 13. Engineering quality & reproducibility
 - Typed dataclass contracts between stages (`src/types.py`); every stage swappable via `config/default.yaml` (no hardcoded model IDs).
 - **Graceful degradation** everywhere (a failing/absent stage logs + passes through — because we *measure* error propagation).
-- `ruff` + `mypy` clean; 17 tests; seeded runs; secrets only via `.env` (free `HF_TOKEN` + `GEMINI_API_KEY`).
+- `ruff` + `mypy` clean; 21 tests; seeded runs; secrets only via `.env` (free `HF_TOKEN` + `GEMINI_API_KEY`).
 - Fully local/free run (LLM stage uses the Gemini free tier; optional local Ollama retained for the "localized" requirement).
 - Visual: a "contracts + config + manifest" triad diagram.
 

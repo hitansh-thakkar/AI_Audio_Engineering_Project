@@ -1,3 +1,3 @@
-from .preprocess import Preprocessor
+from .preprocess import Preprocessor, chunk_audio
 
-__all__ = ["Preprocessor"]
+__all__ = ["Preprocessor", "chunk_audio"]

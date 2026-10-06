@@ -63,3 +63,24 @@ class Preprocessor:
             y, _ = librosa.effects.trim(y, top_db=int(self.cfg.trim_top_db))
 
         return AudioClip(samples=y.astype(np.float32), sample_rate=sr, source_path=path)
+
+
+def chunk_audio(clip: AudioClip, chunk_seconds: float) -> list[AudioClip]:
+    """Split a clip into contiguous pieces of at most `chunk_seconds`.
+
+    Long broadcasts are processed in windows (the demo handles 30–120 s clips, not whole
+    broadcasts). Returns `[clip]` unchanged when it already fits in one window or chunking
+    is disabled (chunk_seconds falsy / <= 0). Chunks keep the parent's source_path; the
+    orchestrator offsets each chunk's timestamps by chunk_index * chunk_seconds.
+    """
+    if not chunk_seconds or chunk_seconds <= 0:
+        return [clip]
+    step = int(chunk_seconds * clip.sample_rate)
+    n = len(clip.samples)
+    if step <= 0 or n <= step:
+        return [clip]
+    return [
+        AudioClip(samples=clip.samples[start:start + step], sample_rate=clip.sample_rate,
+                  source_path=clip.source_path)
+        for start in range(0, n, step)
+    ]
