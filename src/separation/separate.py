@@ -10,8 +10,12 @@ degrades gracefully: it records the region un-separated and notes it — errors 
 """
 from __future__ import annotations
 
+from pathlib import Path
+
+import librosa
 import numpy as np
 
+from ..config import load_env
 from ..types import AudioClip, SeparatedSource
 
 
@@ -23,16 +27,60 @@ class Separator:
         self.version = f"{cfg.mode}-{cfg.backend}"
         self._model = None
         self._available = False
+        self._load_error: str | None = None
 
     def load(self) -> None:
-        """Try to load a real separator; stay graceful if deps/weights are absent."""
+        """Defer model loading until an overlap region actually needs separation."""
+        return
+
+    def _ensure_model(self, notes: list[str]) -> bool:
+        if self._model is not None:
+            return True
+        if self._load_error is not None:
+            return False
+        backend = str(self.cfg.backend)
+        if backend != "sepformer":
+            self._load_error = f"separator backend '{backend}' is not wired"
+            notes.append(self._load_error)
+            return False
         try:
-            import speechbrain  # noqa: F401
-            # Real SepFormer/Conv-TasNet loading would happen here.
-            # Left unloaded by default to keep the local run dependency-light.
-            self._available = False
-        except Exception:
-            self._available = False
+            import inspect
+
+            import huggingface_hub
+            import torchaudio
+
+            load_env()
+            if not hasattr(torchaudio, "list_audio_backends"):
+                torchaudio.list_audio_backends = lambda: ["soundfile"]
+            if "use_auth_token" not in inspect.signature(huggingface_hub.hf_hub_download).parameters:
+                original_hf_hub_download = huggingface_hub.hf_hub_download
+
+                def hf_hub_download_compat(*args, use_auth_token=None, **kwargs):
+                    if use_auth_token is not None:
+                        kwargs["token"] = use_auth_token
+                    return original_hf_hub_download(*args, **kwargs)
+
+                huggingface_hub.hf_hub_download = hf_hub_download_compat
+            from speechbrain.inference.separation import SepformerSeparation
+            from speechbrain.utils.fetching import LocalStrategy
+
+            model_dir = Path("models") / "sepformer-wsj02mix"
+            model_dir.mkdir(parents=True, exist_ok=True)
+            custom_module = model_dir / "custom.py"
+            custom_module.touch(exist_ok=True)
+            self._model = SepformerSeparation.from_hparams(
+                source=str(self.cfg.model),
+                pymodule_file="custom.py",
+                savedir=str(model_dir),
+                run_opts={"device": "cpu"},
+                local_strategy=LocalStrategy.COPY,
+            )
+            self._available = True
+            return True
+        except Exception as exc:
+            self._load_error = f"could not load {backend} model '{self.cfg.model}': {exc}"
+            notes.append(self._load_error)
+            return False
 
     def run(self, clip: AudioClip, overlap_regions: list[tuple[float, float]],
             notes: list[str] | None = None) -> list[SeparatedSource]:
@@ -49,9 +97,9 @@ class Separator:
                 notes.append("separation.mode=overlap but no overlap regions; nothing to separate")
                 return []
 
-        if not self._available:
+        if not self._ensure_model(notes):
             notes.append(
-                "no real separator installed (SpeechBrain/SepFormer absent); "
+                "real separator unavailable; "
                 "returning un-separated regions as passthrough sources"
             )
 
@@ -68,5 +116,19 @@ class Separator:
                 out.append(SeparatedSource(region=(start, end), speaker=f"SRC_{k}", samples=src))
         return out
 
-    def _separate_region(self, seg: np.ndarray, sr: int):  # pragma: no cover
-        raise NotImplementedError("real SepFormer backend not wired in this build")
+    def _separate_region(self, seg: np.ndarray, sr: int) -> list[np.ndarray]:  # pragma: no cover
+        model_sr = int(self.cfg.model_sample_rate)
+        model_input = librosa.resample(seg.astype(np.float32), orig_sr=sr, target_sr=model_sr)
+        import torch
+
+        estimated = self._model.separate_batch(torch.from_numpy(model_input).unsqueeze(0))
+
+        estimated = estimated.detach().cpu().numpy()
+        if estimated.ndim == 3:
+            estimated = estimated[0]
+        if estimated.ndim != 2:
+            raise ValueError(f"unexpected separator output shape: {estimated.shape}")
+        return [
+            librosa.resample(source.astype(np.float32), orig_sr=model_sr, target_sr=sr)
+            for source in estimated.T
+        ]

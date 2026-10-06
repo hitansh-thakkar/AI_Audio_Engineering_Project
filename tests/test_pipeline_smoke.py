@@ -21,8 +21,11 @@ def test_end_to_end_smoke(sequential_clip, tmp_path):
     assert manifest.config_hash
 
     out_dir = tmp_path / sequential_clip.stem
-    for fname in ("report.json", "report.md", "timeline.json", "manifest.json"):
+    for fname in ("processed.wav", "report.json", "report.md", "timeline.json", "manifest.json"):
         assert (out_dir / fname).exists(), f"missing {fname}"
+    speaker_paths = manifest.artifacts["speaker_audio"]
+    assert len(speaker_paths) == manifest.artifacts["num_speakers"]
+    assert all((out_dir / "speakers" / path.split("speakers\\")[-1]).exists() for path in speaker_paths)
 
     report = json.loads((out_dir / "report.json").read_text(encoding="utf-8"))
     assert "summary" in report and "dialogue" in report

@@ -16,6 +16,9 @@ import tracemalloc
 from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
+import soundfile as sf
+
 from .asr import ASRStub
 from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
@@ -32,6 +35,25 @@ from .types import (
     Transcript,
     TranscriptSegment,
 )
+
+
+def _write_speaker_tracks(clip, turns, out_dir: Path) -> list[str]:
+    speaker_dir = out_dir / "speakers"
+    speaker_dir.mkdir(exist_ok=True)
+    paths: list[str] = []
+    for speaker in sorted({turn.speaker for turn in turns}):
+        track = np.zeros_like(clip.samples)
+        for turn in turns:
+            if turn.speaker != speaker:
+                continue
+            start = max(0, int(round(turn.start * clip.sample_rate)))
+            end = min(len(track), int(round(turn.end * clip.sample_rate)))
+            if end > start:
+                track[start:end] = clip.samples[start:end]
+        path = speaker_dir / f"{speaker}.wav"
+        sf.write(path, track, clip.sample_rate)
+        paths.append(str(path))
+    return paths
 
 
 def _report_to_dict(report: Report) -> dict:
@@ -132,6 +154,8 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
     with measure(pre.name, pre.version, stages) as notes:
         pre.load()
         clip = pre.run(audio, notes)
+    processed_audio_path = out_dir / "processed.wav"
+    sf.write(processed_audio_path, clip.samples, clip.sample_rate)
 
     # --- long files are processed in <= chunk_seconds windows (one window for short clips)
     chunk_seconds = float(cfg.preprocessing.chunk_seconds)
@@ -162,7 +186,31 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         (out_dir / "timeline.json").write_text(
             json.dumps(diarization.to_timeline_json(), ensure_ascii=False, indent=2), encoding="utf-8"
         )
+    speaker_audio_paths = _write_speaker_tracks(clip, diarization.turns, out_dir)
 
+<<<<<<< HEAD
+=======
+    # --- Stage 3: separation (surgical)
+    sep = Separator(cfg.separation)
+    with measure(sep.name, sep.version, stages) as notes:
+        sep.load()
+        separated = sep.run(clip, diarization.overlap_regions, notes)
+    separated_audio_paths: list[str] = []
+    if separated:
+        separated_dir = out_dir / "separated"
+        separated_dir.mkdir(exist_ok=True)
+        for index, source in enumerate(separated):
+            source_path = separated_dir / f"source_{index:03d}_{source.speaker}.wav"
+            sf.write(source_path, source.samples, clip.sample_rate)
+            separated_audio_paths.append(str(source_path))
+
+    # --- Stage 4: ASR + alignment (stub pre-midsem)
+    asr = ASRStub(cfg.asr)
+    with measure(asr.name, asr.version, stages) as notes:
+        asr.load()
+        transcript = asr.run(clip, diarization, separated, notes)
+
+>>>>>>> 16d713d0dac8e2ed7b4040fa71e03dfdf8c098a0
     # --- Stage 5: LLM post-processing (stub pre-midsem)
     post = PostProcessorStub(cfg.postprocessing)
     with measure(post.name, post.version, stages) as notes:
@@ -178,6 +226,9 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         git_sha=git_sha(), config_hash=config_hash(cfg), seeds=seeds, stages=stages,
         config_snapshot=json.loads(json.dumps(_oc_to_container(cfg))),
         artifacts={
+            "processed_audio": str(processed_audio_path),
+            "speaker_audio": speaker_audio_paths,
+            "separated_audio": separated_audio_paths,
             "report_json": str(out_dir / "report.json"),
             "report_md": str(out_dir / "report.md"),
             "timeline_json": str(out_dir / "timeline.json"),
