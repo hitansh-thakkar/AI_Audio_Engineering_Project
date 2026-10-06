@@ -66,11 +66,10 @@ class Separator:
 
             model_dir = Path("models") / "sepformer-wsj02mix"
             model_dir.mkdir(parents=True, exist_ok=True)
-            custom_module = model_dir / "custom.py"
-            custom_module.touch(exist_ok=True)
+            # Let speechbrain fetch the model's own custom.py (don't pass pymodule_file /
+            # pre-create an empty one — that breaks from_hparams on speechbrain 1.1.x).
             self._model = SepformerSeparation.from_hparams(
                 source=str(self.cfg.model),
-                pymodule_file="custom.py",
                 savedir=str(model_dir),
                 run_opts={"device": "cpu"},
                 local_strategy=LocalStrategy.COPY,
@@ -117,6 +116,7 @@ class Separator:
         return out
 
     def _separate_region(self, seg: np.ndarray, sr: int) -> list[np.ndarray]:  # pragma: no cover
+        assert self._model is not None  # run() only calls this once the model is loaded
         model_sr = int(self.cfg.model_sample_rate)
         model_input = librosa.resample(seg.astype(np.float32), orig_sr=sr, target_sr=model_sr)
         import torch

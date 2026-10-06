@@ -188,13 +188,7 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         )
     speaker_audio_paths = _write_speaker_tracks(clip, diarization.turns, out_dir)
 
-<<<<<<< HEAD
-=======
-    # --- Stage 3: separation (surgical)
-    sep = Separator(cfg.separation)
-    with measure(sep.name, sep.version, stages) as notes:
-        sep.load()
-        separated = sep.run(clip, diarization.overlap_regions, notes)
+    # write any separated sources (from overlap/everywhere separation above) to disk
     separated_audio_paths: list[str] = []
     if separated:
         separated_dir = out_dir / "separated"
@@ -204,13 +198,6 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
             sf.write(source_path, source.samples, clip.sample_rate)
             separated_audio_paths.append(str(source_path))
 
-    # --- Stage 4: ASR + alignment (stub pre-midsem)
-    asr = ASRStub(cfg.asr)
-    with measure(asr.name, asr.version, stages) as notes:
-        asr.load()
-        transcript = asr.run(clip, diarization, separated, notes)
-
->>>>>>> 16d713d0dac8e2ed7b4040fa71e03dfdf8c098a0
     # --- Stage 5: LLM post-processing (stub pre-midsem)
     post = PostProcessorStub(cfg.postprocessing)
     with measure(post.name, post.version, stages) as notes:
