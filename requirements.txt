@@ -2,8 +2,10 @@
 torch>=2.1
 torchaudio>=2.1
 numpy
+scipy                      # high-pass / signal filters in preprocessing
 soundfile
 librosa
+pyloudnorm                 # ITU-R BS.1770 loudness normalization (normalize: lufs)
 
 # Diarization
 pyannote.audio>=4.0        # requires Python 3.10+; runs on CPU (free HF token, gated not paid)

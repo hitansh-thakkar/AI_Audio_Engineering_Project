@@ -2,7 +2,49 @@ import numpy as np
 from omegaconf import OmegaConf
 
 from src.preprocessing import Preprocessor, chunk_audio
+from src.preprocessing.preprocess import (
+    highpass,
+    lufs_normalize,
+    measure_lufs,
+    spectral_denoise,
+)
 from src.types import AudioClip
+
+SR = 16000
+
+
+def _tone(freq, seconds, amp=1.0, sr=SR):
+    t = np.arange(int(seconds * sr)) / sr
+    return (amp * np.sin(2 * np.pi * freq * t)).astype(np.float32)
+
+
+def test_highpass_attenuates_rumble_keeps_voice():
+    lo = highpass(_tone(40, 1.0), SR, cutoff_hz=120)
+    hi = highpass(_tone(1000, 1.0), SR, cutoff_hz=120)
+    assert np.sqrt(np.mean(lo ** 2)) < 0.25        # 40 Hz rumble killed
+    assert np.sqrt(np.mean(hi ** 2)) > 0.6         # 1 kHz voice preserved
+
+
+def test_spectral_denoise_lowers_noise_floor_keeps_signal():
+    rng = np.random.default_rng(0)
+    y = np.concatenate([np.zeros(SR, np.float32), _tone(440, 1.0, 0.3)])
+    noisy = (y + 0.05 * rng.standard_normal(len(y)).astype(np.float32)).astype(np.float32)
+    out = spectral_denoise(noisy, SR)
+    sil_before = np.sqrt(np.mean(noisy[:SR] ** 2))
+    sil_after = np.sqrt(np.mean(out[:SR] ** 2))
+    assert sil_after < 0.6 * sil_before            # noise floor substantially reduced
+    assert np.sqrt(np.mean(out[SR:] ** 2)) > 0.1   # tone survives
+
+
+def test_lufs_normalizes_to_target():
+    out = lufs_normalize(_tone(1000, 3.0, 0.01), SR, target_lufs=-23.0)
+    assert abs(measure_lufs(out, SR) - (-23.0)) < 1.5
+
+
+def test_lufs_equalizes_two_input_levels():
+    a = lufs_normalize(_tone(500, 3.0, 0.1), SR, -23.0)
+    b = lufs_normalize(_tone(500, 3.0, 0.5), SR, -23.0)
+    assert abs(measure_lufs(a, SR) - measure_lufs(b, SR)) < 1.0
 
 
 def _cfg(**over):

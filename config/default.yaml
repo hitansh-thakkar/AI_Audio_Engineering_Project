@@ -11,8 +11,10 @@ run:
 preprocessing:
   target_sample_rate: 16000
   mono: true
+  highpass_hz: 0          # 0 = off; e.g. 70 removes mobile-mic rumble / mains hum
+  denoise: none           # none | spectral (dependency-light gating) | demucs | dns (optional heavy)
   normalize: peak         # peak | lufs | none
-  denoise: none           # none | demucs | dns  (demucs = music/vocal split, NOT speaker separation)
+  target_lufs: -23.0      # used when normalize: lufs (ITU-R BS.1770 integrated loudness)
   trim_silence: true
   trim_top_db: 30
   chunk_seconds: 120      # split long files for the demo

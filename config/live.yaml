@@ -13,8 +13,10 @@ run:
 preprocessing:
   target_sample_rate: 16000
   mono: true
-  normalize: peak
-  denoise: none
+  highpass_hz: 70         # mobile-mic rumble / mains hum (proposal's real-world audio)
+  denoise: spectral       # attenuate stationary market/village background noise
+  normalize: lufs         # consistent loudness across recordings
+  target_lufs: -23.0
   trim_silence: true
   trim_top_db: 30
   chunk_seconds: 120
