@@ -88,6 +88,11 @@ class Diarizer:
         # stream VAD cannot find them. Degrades to [] with a clear note if unavailable.
         detector = OverlapDetector(self.cfg, self.run_cfg)
         overlap_regions = detector.detect(clip, notes) if detector.enabled else []
+        if not overlap_regions:
+            inferred = compute_overlaps(merged)
+            if inferred:
+                overlap_regions = inferred
+                notes.append("overlap regions inferred from overlapping diarized turns")
         if not detector.enabled:
             notes.append("overlap detection off (diarization.overlap_detector=none); "
                          "overlap_regions left empty")

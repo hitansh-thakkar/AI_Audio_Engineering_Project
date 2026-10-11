@@ -49,6 +49,10 @@ class OverlapDetector:
             return False
         import os
         try:
+            import torchaudio
+
+            if not hasattr(torchaudio, "list_audio_backends"):
+                torchaudio.list_audio_backends = lambda: ["soundfile"]
             from pyannote.audio import Pipeline
             load_env()
             token = os.environ.get("HF_TOKEN")
@@ -60,7 +64,8 @@ class OverlapDetector:
             return True
         except Exception as exc:                 # gated 403 / offline / missing dep
             kind = type(exc).__name__
-            self._load_error = f"could not load pyannote ({kind}); {_ACCEPT_HINT}"
+            detail = str(exc).replace("\n", " ")[:180]
+            self._load_error = f"could not load pyannote ({kind}: {detail}); {_ACCEPT_HINT}"
             notes.append(f"overlap detection unavailable: {self._load_error}")
             return False
 
@@ -79,6 +84,7 @@ class OverlapDetector:
                 notes.append("overlap detector ran; no overlapping speech found")
             return regions
         except Exception as exc:                 # keep the run alive; record and pass through
-            notes.append(f"overlap detection failed at inference ({type(exc).__name__}); "
+            detail = str(exc).replace("\n", " ")[:180]
+            notes.append(f"overlap detection failed at inference ({type(exc).__name__}: {detail}); "
                          "continuing without overlap regions")
             return []

@@ -73,6 +73,7 @@ class ProcessResult:
     num_separated_sources: int
     speakers: list[SpeakerResult]
     timeline: list[dict]
+    overlap_regions: list[dict]
     notes: list[str]
     manifest_path: str
 
@@ -111,6 +112,7 @@ def _shape(manifest: RunManifest, out_dir: Path, clip_id: str) -> ProcessResult:
         num_overlap_regions=int(art.get("num_overlap_regions", 0)),
         num_separated_sources=int(art.get("num_separated_sources", 0)),
         speakers=speakers, timeline=timeline, notes=notes,
+        overlap_regions=list(art.get("overlap_regions", [])),
         manifest_path=str(out_dir / "manifest.json"))
 
 

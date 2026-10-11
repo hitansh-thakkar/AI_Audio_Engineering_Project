@@ -216,6 +216,10 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
             "report_md": str(out_dir / "report.md"),
             "timeline_json": str(out_dir / "timeline.json"),
             "num_speakers": diarization.num_speakers,
+            "overlap_regions": [
+                {"start_s": round(start, 3), "end_s": round(end, 3)}
+                for start, end in diarization.overlap_regions
+            ],
             "num_overlap_regions": len(diarization.overlap_regions),
             "num_separated_sources": len(separated),
             "num_transcript_segments": len(transcript.segments),

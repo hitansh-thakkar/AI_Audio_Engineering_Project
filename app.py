@@ -8,6 +8,7 @@ and src/pipeline (both unit-tested).
 """
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -18,9 +19,7 @@ import streamlit as st
 from src.ui.service import ProcessResult, envelope, run_on_file, transcode_to_wav
 
 REPO = Path(__file__).resolve().parent
-MIX_DIR = REPO / "dhvani_eval" / "overlap_mixtures" / "mix"
 LIVE_CFG = REPO / "config" / "live.yaml"
-DEMO_CFG = REPO / "config" / "overlap_demo.yaml"
 SCRATCH = Path(tempfile.gettempdir()) / "dhvani_ui"
 
 st.set_page_config(page_title="Dhvani — Speaker Separation", page_icon="🎙", layout="wide")
@@ -82,28 +81,75 @@ def waveform(path: str, color: str):
     st.altair_chart(chart, use_container_width=True)
 
 
+def timeline_chart(result: ProcessResult) -> None:
+    overlap_regions = getattr(result, "overlap_regions", [])
+    rows = [
+        {"speaker": row["speaker"], "start": row["start_s"], "end": row["end_s"]}
+        for row in result.timeline
+    ]
+    rows += [
+        {"speaker": "OVERLAP", "start": region["start_s"], "end": region["end_s"]}
+        for region in overlap_regions
+    ]
+    if not rows:
+        return
+    frame = pd.DataFrame(rows)
+    domain = [speaker.name for speaker in result.speakers] + ["OVERLAP"]
+    range_ = [speaker.color for speaker in result.speakers] + ["#111827"]
+    chart = (
+        alt.Chart(frame)
+        .mark_bar(height=20, cornerRadius=3)
+        .encode(
+            x=alt.X("start:Q", title="Time (seconds)"),
+            x2="end:Q",
+            y=alt.Y("speaker:N", title=None, sort=domain),
+            color=alt.Color("speaker:N", scale=alt.Scale(domain=domain, range=range_), legend=None),
+            tooltip=["speaker:N", "start:Q", "end:Q"],
+        )
+        .properties(height=max(100, 42 * len(domain)))
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
 def show_results(result: ProcessResult, source_audio: str) -> None:
+    overlap_regions = getattr(result, "overlap_regions", [])
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Speakers", result.num_speakers)
     c2.metric("Overlap regions", result.num_overlap_regions)
     c3.metric("Separated sources", result.num_separated_sources)
     c4.metric("Duration", f"{result.duration:.1f}s")
 
-    lic = next((n for n in result.notes if "overlap detection" in n and
-                ("unavailable" in n or "disabled" in n)), None)
+    overlap_warning = next((n for n in result.notes if "overlap detection" in n and
+                            ("unavailable" in n or "disabled" in n or "failed" in n)), None)
     if result.num_overlap_regions:
-        st.success(f"Separated overlapping speech in {result.num_overlap_regions} region(s).")
-    elif lic:
+        st.success(f"Detected and separated overlap in {result.num_overlap_regions} region(s).")
+    elif overlap_warning:
         st.warning(
-            "Split by speaker, but **overlap separation is off**. To separate simultaneous "
-            "speech, accept the free licence at "
-            "https://hf.co/pyannote/speaker-diarization-community-1 (and its segmentation "
-            "dependency), set `HF_TOKEN`, then re-run.")
+            "Speakers were split, but automatic overlap detection failed for this file. "
+            "The detailed reason is available under Run notes."
+        )
     else:
         st.info("No overlapping speech detected — speakers were already sequential.")
 
     st.markdown("##### Original")
     st.audio(source_audio)
+
+    st.markdown("##### Speaker timeline")
+    timeline_chart(result)
+    timeline_payload = {
+        "clip_id": result.clip_id,
+        "duration_s": result.duration,
+        "turns": result.timeline,
+        "overlap_regions": overlap_regions,
+        "num_speakers": result.num_speakers,
+    }
+    st.download_button(
+        "Download timeline JSON",
+        json.dumps(timeline_payload, ensure_ascii=False, indent=2),
+        file_name=f"{result.clip_id}_timeline.json",
+        mime="application/json",
+        key="download_timeline",
+    )
 
     st.markdown("##### Separated voices")
     for spk in result.speakers:
@@ -128,34 +174,20 @@ def show_results(result: ProcessResult, source_audio: str) -> None:
                 st.markdown(f"- {n}")
 
 
-# ── controls ───────────────────────────────────────────────────────────────────────────────
-mode = st.radio("Mode", ["Separate my audio", "Demo: overlap mixtures"],
-                horizontal=True, label_visibility="collapsed")
-
-if mode == "Separate my audio":
-    upload = st.file_uploader("Upload audio", type=["wav", "mp3", "flac", "ogg", "m4a"],
-                              help="Any common audio format. It's converted to 16 kHz mono.")
-    if upload and st.button("Separate speakers", type="primary"):
-        SCRATCH.mkdir(parents=True, exist_ok=True)
-        raw = SCRATCH / upload.name
-        raw.write_bytes(upload.getbuffer())
-        stem = "".join(c if c.isalnum() else "_" for c in Path(upload.name).stem) or "upload"
-        with st.spinner("Diarizing, detecting overlap, separating… this can take a minute."):
-            wav = transcode_to_wav(raw, SCRATCH / "in" / f"{stem}.wav")
-            result = run_on_file(wav, LIVE_CFG, SCRATCH / "out")
-        st.session_state["result"] = (result, str(wav))
-else:
-    mixes = sorted(p.stem for p in MIX_DIR.glob("*.wav")) if MIX_DIR.exists() else []
-    if not mixes:
-        st.error("No overlap mixtures found under dhvani_eval/overlap_mixtures/mix/.")
-    else:
-        pick = st.selectbox("Pick a pre-built overlap mixture", mixes, index=2 if len(mixes) > 2 else 0)
-        st.caption("These ship with ground-truth overlap regions, so true overlap separation runs.")
-        if st.button("Separate speakers", type="primary"):
-            src = MIX_DIR / f"{pick}.wav"
-            with st.spinner("Separating overlapping speakers…"):
-                result = run_on_file(src, DEMO_CFG, REPO / "outputs")
-            st.session_state["result"] = (result, str(src))
+upload = st.file_uploader(
+    "Upload audio",
+    type=["wav", "mp3", "flac", "ogg", "m4a", "mpeg"],
+    help="Dhvani automatically detects speakers and overlapping speech.",
+)
+if upload and st.button("Analyze audio", type="primary"):
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    raw = SCRATCH / upload.name
+    raw.write_bytes(upload.getbuffer())
+    stem = "".join(c if c.isalnum() else "_" for c in Path(upload.name).stem) or "upload"
+    with st.spinner("Detecting speakers and overlap, then separating where needed…"):
+        wav = transcode_to_wav(raw, SCRATCH / "in" / f"{stem}.wav")
+        result = run_on_file(wav, LIVE_CFG, SCRATCH / "out")
+    st.session_state["result"] = (result, str(wav))
 
 if "result" in st.session_state:
     st.divider()
