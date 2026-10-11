@@ -16,7 +16,25 @@ import librosa
 import numpy as np
 
 from ..config import load_env
-from ..types import AudioClip, SeparatedSource
+from ..types import AudioClip, DiarizationResult, SeparatedSource
+from .assign import attribute_streams
+
+
+def _scale_to_reference(est: np.ndarray, ref: np.ndarray, eps: float = 1e-8) -> np.ndarray:
+    """Rescale a separated source to the amplitude it has inside the mixture.
+
+    Neural separators (SepFormer) emit arbitrary, often large scale (peaks >> 1.0); written
+    to 16-bit PCM that clips and destroys the audio. Projecting the estimate onto the mixture
+    recovers the true per-source level, keeps the track loudness-coherent with its solo
+    regions, and is SI-SNR-invariant so separation quality is unchanged.
+    """
+    e = est.astype(np.float64)
+    r = ref.astype(np.float64)
+    denom = float(np.dot(e, e))
+    if denom < eps:
+        return est
+    alpha = float(np.dot(e, r) / denom)
+    return (alpha * e).astype(np.float32)
 
 
 class Separator:
@@ -81,7 +99,24 @@ class Separator:
             notes.append(self._load_error)
             return False
 
-    def run(self, clip: AudioClip, overlap_regions: list[tuple[float, float]],
+    def _context_window(self, diar: DiarizationResult, region: tuple[float, float],
+                        ctx: float, duration: float, notes: list[str]) -> tuple[float, float]:
+        """Widen an overlap region to the span of its active speakers' turns (+ ctx margin),
+        clamped to the clip. Context lets the separator anchor each voice on its solo audio.
+        wsj02mix is 2-speaker; a window with >2 active speakers is noted as a degradation."""
+        r0, r1 = region
+        active = [t for t in diar.turns if t.start < r1 and t.end > r0]
+        w0 = min([t.start for t in active], default=r0)
+        w1 = max([t.end for t in active], default=r1)
+        w0 = max(0.0, min(w0, r0) - ctx)
+        w1 = min(duration, max(w1, r1) + ctx)
+        n_spk = len({t.speaker for t in diar.turns if t.start < w1 and t.end > w0})
+        if n_spk > int(self.cfg.max_speakers_supported):
+            notes.append(f"context window {(round(w0, 3), round(w1, 3))} spans {n_spk} speakers "
+                         f"but backend supports {self.cfg.max_speakers_supported}; separation may degrade")
+        return w0, w1
+
+    def run(self, clip: AudioClip, diarization: DiarizationResult,
             notes: list[str] | None = None) -> list[SeparatedSource]:
         notes = [] if notes is None else notes
         mode = str(self.cfg.mode)
@@ -91,12 +126,13 @@ class Separator:
         if mode == "everywhere":
             regions = [(0.0, clip.duration)]
         else:  # overlap
-            regions = list(overlap_regions)
+            regions = list(diarization.overlap_regions)
             if not regions:
                 notes.append("separation.mode=overlap but no overlap regions; nothing to separate")
                 return []
 
-        if not self._ensure_model(notes):
+        model_ok = self._ensure_model(notes)
+        if not model_ok:
             notes.append(
                 "real separator unavailable; "
                 "returning un-separated regions as passthrough sources"
@@ -104,15 +140,26 @@ class Separator:
 
         out: list[SeparatedSource] = []
         sr = clip.sample_rate
+        ctx = float(getattr(self.cfg, "context_seconds", 3.0))
         for (start, end) in regions:
-            i0, i1 = int(start * sr), int(end * sr)
-            seg = clip.samples[i0:i1]
-            if self._available and self._model is not None:  # pragma: no cover (needs weights)
-                sources = self._separate_region(seg, sr)
+            if mode == "everywhere":
+                w0, w1 = 0.0, clip.duration
             else:
-                sources = [seg]  # passthrough
-            for k, src in enumerate(sources):
-                out.append(SeparatedSource(region=(start, end), speaker=f"SRC_{k}", samples=src))
+                w0, w1 = self._context_window(diarization, (start, end), ctx, clip.duration, notes)
+            wi0, wi1 = int(w0 * sr), int(w1 * sr)
+            window = clip.samples[wi0:wi1]
+            if model_ok and self._model is not None:  # pragma: no cover (needs weights)
+                streams = self._separate_region(window, sr)
+            else:
+                streams = [window]  # passthrough
+
+            mapping = attribute_streams(streams, (w0, w1), diarization, window, sr, notes)
+            oi0, oi1 = int(round((start - w0) * sr)), int(round((end - w0) * sr))
+            mix_overlap = window[oi0:oi1]
+            for k, stream in enumerate(streams):
+                speaker = mapping.get(k, f"SRC_{k}")
+                samples = _scale_to_reference(stream[oi0:oi1], mix_overlap)
+                out.append(SeparatedSource(region=(start, end), speaker=speaker, samples=samples))
         return out
 
     def _separate_region(self, seg: np.ndarray, sr: int) -> list[np.ndarray]:  # pragma: no cover

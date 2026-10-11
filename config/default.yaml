@@ -22,6 +22,7 @@ diarization:
   backend: community1     # community1 (free, local) | legacy31 (free, local) | precision2 (OPTIONAL PAID API)
   model: pyannote/speaker-diarization-community-1
   clustering: spectral    # REQUIRED (proposal M2): spectral | gmm = hand-applied clustering of embeddings | builtin = pyannote end-to-end
+  overlap_detector: none  # none | pyannote (gated-but-free model → overlap regions for separation; needs HF_TOKEN + accepted licence)
   emit_timeline_json: true  # REQUIRED M2 deliverable: time->speaker timeline JSON alongside the RTTM
   embedding: auto         # auto = pyannote if available else MFCC-stats fallback
   num_speakers: null
@@ -35,6 +36,8 @@ separation:
   model: speechbrain/sepformer-wsj02mix
   model_sample_rate: 8000 # checkpoints are 8 kHz; resample in/out
   max_speakers_supported: 2   # documented hard limit
+  context_seconds: 3.0    # widen each overlap region by this margin so the separator has
+                          # solo context to anchor each voice (bare-overlap slices separate poorly)
 
 asr:
   backend: faster_whisper # faster_whisper (local, default) | indicconformer (optional, heavy NeMo)

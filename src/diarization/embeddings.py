@@ -36,3 +36,16 @@ def embed_segments(samples: np.ndarray, sr: int, segments: list[tuple[float, flo
     norms = np.linalg.norm(emb, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     return emb / norms
+
+
+def embed_waveform(samples: np.ndarray, sr: int, backend: str = "auto",
+                   notes: list[str] | None = None) -> np.ndarray:
+    """L2-normalized embedding of a standalone waveform (whole array as one segment).
+
+    Used to compare a separated source against a speaker's voiceprint; same MFCC-stats
+    representation as the clustering embedder so the spaces are comparable.
+    """
+    if samples.size == 0:
+        return np.zeros(2 * 20, dtype=np.float32)
+    seconds = len(samples) / sr
+    return embed_segments(samples, sr, [(0.0, seconds)], backend, notes)[0]

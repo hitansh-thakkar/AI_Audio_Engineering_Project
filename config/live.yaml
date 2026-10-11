@@ -1,0 +1,68 @@
+# Dhvani — live / arbitrary-upload config (used by the Streamlit UI "Separate my audio").
+# Real diarization (hand-applied Spectral clustering) + pyannote overlap detection so that
+# overlapping speech in a user's own recording is detected and separated. Falls back
+# gracefully to per-speaker tracks (no overlap split) if the pyannote licence isn't accepted.
+
+run:
+  seed: 42
+  device: cpu
+  output_dir: outputs/
+  save_intermediate: true
+  order: diar_first
+
+preprocessing:
+  target_sample_rate: 16000
+  mono: true
+  normalize: peak
+  denoise: none
+  trim_silence: true
+  trim_top_db: 30
+  chunk_seconds: 120
+
+diarization:
+  source: real
+  backend: community1
+  model: pyannote/speaker-diarization-community-1
+  clustering: spectral        # compulsory hand-applied clustering owns speaker attribution
+  overlap_detector: pyannote  # pyannote supplies overlap regions only (gated-but-free)
+  emit_timeline_json: true
+  embedding: auto
+  num_speakers: null
+  min_speakers: null
+  max_speakers: null
+  rttm_dir: null
+
+separation:
+  mode: overlap
+  backend: sepformer
+  model: speechbrain/sepformer-wsj02mix
+  model_sample_rate: 8000
+  max_speakers_supported: 2
+  context_seconds: 3.0
+
+asr:
+  backend: faster_whisper
+  model: large-v3
+  device: cpu
+  compute_type: int8
+  align: true
+  align_backend: whisperx
+  normalizer: indic_script_safe
+
+postprocessing:
+  backend: gemini
+  model: gemini-2.5-flash
+  api_key_env: GEMINI_API_KEY
+  host: http://localhost:11434
+  structured_output: true
+  factual_consistency_check: true
+  forbid_new_facts: true
+
+evaluation:
+  metrics:
+    separation: [si_snri, sdri]
+    diarization: [der, jer, speaker_count_error]
+    asr: [wer, cer]
+    summary: [rouge_l, bertscore, factual_consistency]
+  measure_latency: true
+  measure_peak_memory: true

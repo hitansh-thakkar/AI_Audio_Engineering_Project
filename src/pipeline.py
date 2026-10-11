@@ -16,7 +16,6 @@ import tracemalloc
 from dataclasses import asdict
 from pathlib import Path
 
-import numpy as np
 import soundfile as sf
 
 from .asr import ASRStub
@@ -25,6 +24,7 @@ from .diarization import Diarizer
 from .postprocessing import PostProcessorStub
 from .preprocessing import Preprocessor, chunk_audio
 from .separation import Separator
+from .separation.stitch import build_speaker_tracks
 from .stage import measure, set_seeds
 from .types import (
     DiarizationResult,
@@ -37,21 +37,17 @@ from .types import (
 )
 
 
-def _write_speaker_tracks(clip, turns, out_dir: Path) -> list[str]:
+def _write_speaker_tracks(clip, diarization, separated, out_dir: Path) -> list[str]:
+    """Write one full-length WAV per speaker: original audio in their solo turns, their
+    assigned separated source inside overlap regions (mix fallback if unassigned)."""
     speaker_dir = out_dir / "speakers"
     speaker_dir.mkdir(exist_ok=True)
+    tracks = build_speaker_tracks(
+        clip, diarization.turns, diarization.overlap_regions, separated)
     paths: list[str] = []
-    for speaker in sorted({turn.speaker for turn in turns}):
-        track = np.zeros_like(clip.samples)
-        for turn in turns:
-            if turn.speaker != speaker:
-                continue
-            start = max(0, int(round(turn.start * clip.sample_rate)))
-            end = min(len(track), int(round(turn.end * clip.sample_rate)))
-            if end > start:
-                track[start:end] = clip.samples[start:end]
+    for speaker in sorted(tracks):
         path = speaker_dir / f"{speaker}.wav"
-        sf.write(path, track, clip.sample_rate)
+        sf.write(path, tracks[speaker], clip.sample_rate)
         paths.append(str(path))
     return paths
 
@@ -106,7 +102,7 @@ def _run_chunked(chunks, chunk_seconds, diar, sep, asr, stages):
         dnotes: list[str] = []
         dres, dt, dm = _timed(lambda ch=ch, n=dnotes: diar.run(ch, n))
         snotes: list[str] = []
-        separated, st, sm = _timed(lambda ch=ch, d=dres, n=snotes: sep.run(ch, d.overlap_regions, n))
+        separated, st, sm = _timed(lambda ch=ch, d=dres, n=snotes: sep.run(ch, d, n))
         anotes: list[str] = []
         tr, at, am = _timed(lambda ch=ch, d=dres, s=separated, n=anotes: asr.run(ch, d, s, n))
 
@@ -172,9 +168,9 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         # --- Stage 2: diarization (backbone)
         with measure(diar.name, diar.version, stages) as notes:
             diarization = diar.run(clip, notes)
-        # --- Stage 3: separation (surgical)
+        # --- Stage 3: separation (surgical): context-window separate + attribute to speakers
         with measure(sep.name, sep.version, stages) as notes:
-            separated = sep.run(clip, diarization.overlap_regions, notes)
+            separated = sep.run(clip, diarization, notes)
         # --- Stage 4: ASR + alignment (stub pre-midsem)
         with measure(asr.name, asr.version, stages) as notes:
             transcript = asr.run(clip, diarization, separated, notes)
@@ -186,7 +182,7 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         (out_dir / "timeline.json").write_text(
             json.dumps(diarization.to_timeline_json(), ensure_ascii=False, indent=2), encoding="utf-8"
         )
-    speaker_audio_paths = _write_speaker_tracks(clip, diarization.turns, out_dir)
+    speaker_audio_paths = _write_speaker_tracks(clip, diarization, separated, out_dir)
 
     # write any separated sources (from overlap/everywhere separation above) to disk
     separated_audio_paths: list[str] = []

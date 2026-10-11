@@ -36,6 +36,9 @@ torchmetrics
 rouge-score
 bert-score                 # downloads a free model (e.g. roberta-large) from HF on first use
 
+# UI (Streamlit app: `streamlit run app.py`)
+streamlit                  # pulls altair + pandas (used for waveforms + timeline table)
+
 # Config / tooling
 omegaconf
 pyyaml

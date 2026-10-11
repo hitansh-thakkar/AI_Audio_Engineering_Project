@@ -14,6 +14,7 @@ from pathlib import Path
 from ..types import AudioClip, DiarizationResult, SpeakerTurn
 from .clustering import cluster_embeddings
 from .embeddings import embed_segments
+from .overlap import OverlapDetector
 from .rttm import compute_overlaps, read_rttm
 from .vad import energy_vad, window_segments
 
@@ -81,9 +82,13 @@ class Diarizer:
                 merged.append(t)
 
         num = len(set(labels.tolist()))
-        if not self.cfg.embedding or str(self.cfg.embedding) != "pyannote":
-            notes.append(
-                "real-mode overlap detection is limited without a pyannote overlap model "
-                "(single-stream VAD); overlap_regions left empty"
-            )
-        return DiarizationResult(turns=merged, overlap_regions=[], num_speakers=num)
+
+        # Speaker attribution above is from the compulsory hand-applied clustering. Overlap
+        # regions (simultaneous speech) come from a dedicated detector when enabled; single-
+        # stream VAD cannot find them. Degrades to [] with a clear note if unavailable.
+        detector = OverlapDetector(self.cfg, self.run_cfg)
+        overlap_regions = detector.detect(clip, notes) if detector.enabled else []
+        if not detector.enabled:
+            notes.append("overlap detection off (diarization.overlap_detector=none); "
+                         "overlap_regions left empty")
+        return DiarizationResult(turns=merged, overlap_regions=overlap_regions, num_speakers=num)
