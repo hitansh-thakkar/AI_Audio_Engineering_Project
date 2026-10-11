@@ -1,8 +1,29 @@
 """Separated sources must be rescaled to mixture level so they don't clip when written
 to 16-bit PCM (SepFormer emits arbitrary, often large, scale)."""
 import numpy as np
+from omegaconf import OmegaConf
 
-from src.separation.separate import _scale_to_reference
+from src.separation.separate import Separator, _scale_to_reference
+
+
+def _sep_cfg(backend, model="x"):
+    return OmegaConf.create(dict(mode="overlap", backend=backend, model=model,
+                                 model_sample_rate=8000, max_speakers_supported=2,
+                                 context_seconds=3.0))
+
+
+def test_unknown_backend_degrades_with_note():
+    notes: list[str] = []
+    assert Separator(_sep_cfg("bogus"))._ensure_model(notes) is False
+    assert any("not wired" in n for n in notes)
+
+
+def test_convtasnet_without_asteroid_degrades_with_note():
+    notes: list[str] = []
+    ok = Separator(_sep_cfg("convtasnet", "mpariente/ConvTasNet_Libri2Mix_sepclean_16k"))._ensure_model(notes)
+    # asteroid isn't a hard dependency; absent it must degrade cleanly, not crash
+    if not ok:
+        assert any("asteroid" in n.lower() or "convtasnet" in n.lower() for n in notes)
 
 
 def test_scale_recovers_reference_level():

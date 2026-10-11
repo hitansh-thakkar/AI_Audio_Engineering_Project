@@ -32,10 +32,10 @@ diarization:
 
 separation:
   mode: overlap           # none | overlap | everywhere   (everywhere = ablation, expected to hurt)
-  backend: sepformer      # sepformer | resepformer | convtasnet
-  model: speechbrain/sepformer-wsj02mix
-  model_sample_rate: 8000 # checkpoints are 8 kHz; resample in/out
-  max_speakers_supported: 2   # documented hard limit
+  backend: sepformer      # sepformer | resepformer | whamr | wham (SpeechBrain) | convtasnet (Asteroid, optional)
+  model: speechbrain/sepformer-wsj02mix   # swap for sepformer-whamr (noise-robust) or a 16 kHz checkpoint
+  model_sample_rate: 8000 # must match the checkpoint (set 16000 for a 16 kHz model); we resample in/out
+  max_speakers_supported: 2   # documented hard limit (set to the model's #sources)
   context_seconds: 3.0    # widen each overlap region by this margin so the separator has
                           # solo context to anchor each voice (bare-overlap slices separate poorly)
 

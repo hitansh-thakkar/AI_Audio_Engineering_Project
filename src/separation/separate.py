@@ -37,6 +37,20 @@ def _scale_to_reference(est: np.ndarray, ref: np.ndarray, eps: float = 1e-8) -> 
     return (alpha * e).astype(np.float32)
 
 
+class _ConvTasNetAdapter:
+    """Expose Asteroid's ConvTasNet through the same `separate_batch` call SepformerSeparation
+    uses, returning (batch, time, n_src) so the rest of the stage is backend-agnostic."""
+
+    def __init__(self, model):
+        self.model = model.eval()
+
+    def separate_batch(self, mixture):   # pragma: no cover (needs asteroid + weights)
+        import torch
+        with torch.no_grad():
+            est = self.model(mixture)    # (batch, n_src, time)
+        return est.transpose(1, 2)       # -> (batch, time, n_src)
+
+
 class Separator:
     name = "separation"
 
@@ -51,53 +65,79 @@ class Separator:
         """Defer model loading until an overlap region actually needs separation."""
         return
 
+    # Backends that load through SpeechBrain's SepformerSeparation interface. The model id
+    # (cfg.model) decides the actual weights/sample-rate, so swapping to a noise-robust
+    # (whamr/wham) or 16 kHz checkpoint is pure config — no code change (golden rule 2).
+    SPEECHBRAIN_BACKENDS = {"sepformer", "resepformer", "whamr", "wham"}
+
     def _ensure_model(self, notes: list[str]) -> bool:
         if self._model is not None:
             return True
         if self._load_error is not None:
             return False
         backend = str(self.cfg.backend)
-        if backend != "sepformer":
-            self._load_error = f"separator backend '{backend}' is not wired"
-            notes.append(self._load_error)
-            return False
         try:
-            import inspect
-
-            import huggingface_hub
-            import torchaudio
-
-            load_env()
-            if not hasattr(torchaudio, "list_audio_backends"):
-                torchaudio.list_audio_backends = lambda: ["soundfile"]
-            if "use_auth_token" not in inspect.signature(huggingface_hub.hf_hub_download).parameters:
-                original_hf_hub_download = huggingface_hub.hf_hub_download
-
-                def hf_hub_download_compat(*args, use_auth_token=None, **kwargs):
-                    if use_auth_token is not None:
-                        kwargs["token"] = use_auth_token
-                    return original_hf_hub_download(*args, **kwargs)
-
-                huggingface_hub.hf_hub_download = hf_hub_download_compat
-            from speechbrain.inference.separation import SepformerSeparation
-            from speechbrain.utils.fetching import LocalStrategy
-
-            model_dir = Path("models") / "sepformer-wsj02mix"
-            model_dir.mkdir(parents=True, exist_ok=True)
-            # Let speechbrain fetch the model's own custom.py (don't pass pymodule_file /
-            # pre-create an empty one — that breaks from_hparams on speechbrain 1.1.x).
-            self._model = SepformerSeparation.from_hparams(
-                source=str(self.cfg.model),
-                savedir=str(model_dir),
-                run_opts={"device": "cpu"},
-                local_strategy=LocalStrategy.COPY,
-            )
+            if backend in self.SPEECHBRAIN_BACKENDS:
+                self._model = self._load_speechbrain(notes)
+            elif backend == "convtasnet":
+                self._model = self._load_convtasnet(notes)   # proposal-named; needs asteroid
+            else:
+                self._load_error = f"separator backend '{backend}' is not wired"
+                notes.append(self._load_error)
+                return False
             self._available = True
             return True
         except Exception as exc:
             self._load_error = f"could not load {backend} model '{self.cfg.model}': {exc}"
             notes.append(self._load_error)
             return False
+
+    def _model_savedir(self) -> Path:
+        slug = str(self.cfg.model).split("/")[-1] or "separator"
+        d = Path("models") / slug
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _load_speechbrain(self, notes: list[str]):
+        import inspect
+
+        import huggingface_hub
+        import torchaudio
+
+        load_env()
+        if not hasattr(torchaudio, "list_audio_backends"):
+            torchaudio.list_audio_backends = lambda: ["soundfile"]
+        if "use_auth_token" not in inspect.signature(huggingface_hub.hf_hub_download).parameters:
+            original_hf_hub_download = huggingface_hub.hf_hub_download
+
+            def hf_hub_download_compat(*args, use_auth_token=None, **kwargs):
+                if use_auth_token is not None:
+                    kwargs["token"] = use_auth_token
+                return original_hf_hub_download(*args, **kwargs)
+
+            huggingface_hub.hf_hub_download = hf_hub_download_compat
+        from speechbrain.inference.separation import SepformerSeparation
+        from speechbrain.utils.fetching import LocalStrategy
+
+        # Let speechbrain fetch the model's own custom.py (don't pass pymodule_file /
+        # pre-create an empty one — that breaks from_hparams on speechbrain 1.1.x).
+        return SepformerSeparation.from_hparams(
+            source=str(self.cfg.model),
+            savedir=str(self._model_savedir()),
+            run_opts={"device": "cpu"},
+            local_strategy=LocalStrategy.COPY,
+        )
+
+    def _load_convtasnet(self, notes: list[str]):
+        """Conv-TasNet via Asteroid (the proposal names Conv-TasNet). Optional heavy dep;
+        if it's not installed we raise a clear message and the stage degrades to passthrough."""
+        try:
+            from asteroid.models import ConvTasNet
+        except Exception as exc:
+            raise RuntimeError(
+                "asteroid not installed; `pip install asteroid` to use the convtasnet backend"
+            ) from exc
+        return _ConvTasNetAdapter(ConvTasNet.from_pretrained(str(self.cfg.model)))
 
     def _context_window(self, diar: DiarizationResult, region: tuple[float, float],
                         ctx: float, duration: float, notes: list[str]) -> tuple[float, float]:
