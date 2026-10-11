@@ -21,6 +21,7 @@ import soundfile as sf
 from .asr import ASRStub
 from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
+from .diarization.rttm import write_rttm
 from .postprocessing import PostProcessorStub
 from .preprocessing import Preprocessor, chunk_audio
 from .separation import Separator
@@ -182,6 +183,9 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
         (out_dir / "timeline.json").write_text(
             json.dumps(diarization.to_timeline_json(), ensure_ascii=False, indent=2), encoding="utf-8"
         )
+    # RTTM: the standard NIST diarization format, alongside the timeline JSON
+    rttm_path = out_dir / f"{clip_id}.rttm"
+    write_rttm(diarization.turns, clip_id, rttm_path)
     speaker_audio_paths = _write_speaker_tracks(clip, diarization, separated, out_dir)
 
     # write any separated sources (from overlap/everywhere separation above) to disk
@@ -215,6 +219,7 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
             "report_json": str(out_dir / "report.json"),
             "report_md": str(out_dir / "report.md"),
             "timeline_json": str(out_dir / "timeline.json"),
+            "rttm": str(rttm_path),
             "num_speakers": diarization.num_speakers,
             "overlap_regions": [
                 {"start_s": round(start, 3), "end_s": round(end, 3)}

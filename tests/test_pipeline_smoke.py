@@ -23,6 +23,10 @@ def test_end_to_end_smoke(sequential_clip, tmp_path):
     out_dir = tmp_path / sequential_clip.stem
     for fname in ("processed.wav", "report.json", "report.md", "timeline.json", "manifest.json"):
         assert (out_dir / fname).exists(), f"missing {fname}"
+    # RTTM export (standard diarization format) alongside the timeline JSON
+    rttm = out_dir / f"{sequential_clip.stem}.rttm"
+    assert rttm.exists(), "missing RTTM"
+    assert rttm.read_text(encoding="utf-8").startswith("SPEAKER ")
     speaker_paths = manifest.artifacts["speaker_audio"]
     assert len(speaker_paths) == manifest.artifacts["num_speakers"]
     assert all((out_dir / "speakers" / path.split("speakers\\")[-1]).exists() for path in speaker_paths)

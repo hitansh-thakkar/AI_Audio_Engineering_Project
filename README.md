@@ -69,13 +69,17 @@ python -m src.pipeline --audio dhvani_eval/overlap_mixtures/mix/mix_002.wav \
 # 6. Measure separation quality across the whole overlap benchmark (SI-SNRi / SDRi)
 python -m src.evaluation.separation_eval
 
+# 6b. First-half benchmark in one command: diarization DER + separation SI-SNRi +
+#     per-stage latency & peak memory (the proposal's System Benchmark)
+python -m src.evaluation.benchmark --out outputs/benchmark.json
+
 # 7. Quality gates
 ruff check src tests
 mypy src
 pytest
 ```
 
-Outputs land in `outputs/<clip_id>/`: `report.json`, `report.md`, `timeline.json` (the Milestone-2 deliverable), `speakers/<speaker>.wav` (clean per-speaker audio — overlaps separated), `separated/` (the attributed overlap sources), and `manifest.json` (timing, memory, versions, notes).
+Outputs land in `outputs/<clip_id>/`: `report.json`, `report.md`, `timeline.json` + `<clip_id>.rttm` (the Milestone-2 deliverables — timeline JSON and standard NIST RTTM), `speakers/<speaker>.wav` (clean per-speaker audio — overlaps separated), `separated/` (the attributed overlap sources), and `manifest.json` (timing, memory, versions, notes).
 
 ### Web UI
 
