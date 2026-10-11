@@ -13,6 +13,7 @@ from __future__ import annotations
 import numpy as np
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.mixture import GaussianMixture
 
 
@@ -24,37 +25,32 @@ def _candidate_ks(n: int, min_sp, max_sp) -> list[int]:
     return list(range(lo, hi + 1))
 
 
-def _estimate_k_spectral(emb: np.ndarray, ks: list[int], seed: int) -> int:
-    best_k, best_score = ks[0], -1.0
+def _cosine_affinity(emb: np.ndarray) -> np.ndarray:
+    """Non-negative cosine-similarity affinity. Speaker embeddings are directional, so cosine
+    separates voices far better than the Euclidean nearest-neighbors graph."""
+    return np.clip(cosine_similarity(emb), 0.0, None)
+
+
+def _estimate_k(emb: np.ndarray, ks: list[int], seed: int) -> int:
+    """Pick the speaker count by the best cosine silhouette over candidate k (shared by both
+    clustering backends — silhouette on the embedding geometry is a more reliable counter than
+    GMM's BIC, which badly over-/under-counts speakers)."""
+    best_k, best_score = ks[0], -2.0
     for k in ks:
         labels = _fit_spectral(emb, k, seed)
         if len(set(labels)) < 2:
             continue
-        score = silhouette_score(emb, labels)
+        score = silhouette_score(emb, labels, metric="cosine")
         if score > best_score:
             best_k, best_score = k, score
     return best_k
 
 
-def _estimate_k_gmm(emb: np.ndarray, ks: list[int], seed: int) -> int:
-    best_k, best_bic = ks[0], np.inf
-    for k in ks:
-        gmm = GaussianMixture(n_components=k, covariance_type="diag", random_state=seed)
-        gmm.fit(emb)
-        bic = gmm.bic(emb)
-        if bic < best_bic:
-            best_k, best_bic = k, bic
-    return best_k
-
-
 def _fit_spectral(emb: np.ndarray, k: int, seed: int) -> np.ndarray:
-    n = emb.shape[0]
-    n_neighbors = min(10, max(2, n - 1))
     sc = SpectralClustering(
-        n_clusters=k, affinity="nearest_neighbors", n_neighbors=n_neighbors,
-        assign_labels="kmeans", random_state=seed,
+        n_clusters=k, affinity="precomputed", assign_labels="kmeans", random_state=seed,
     )
-    return sc.fit_predict(emb)
+    return sc.fit_predict(_cosine_affinity(emb))
 
 
 def cluster_embeddings(emb: np.ndarray, method: str = "spectral", num_speakers=None,
@@ -75,8 +71,7 @@ def cluster_embeddings(emb: np.ndarray, method: str = "spectral", num_speakers=N
         if not ks:
             notes.append("too few segments to estimate speaker count; assuming 1")
             return np.zeros((n,), dtype=int)
-        k = (_estimate_k_spectral(emb, ks, seed) if method == "spectral"
-             else _estimate_k_gmm(emb, ks, seed))
+        k = _estimate_k(emb, ks, seed)
 
     k = min(k, n)
     if k <= 1:

@@ -13,7 +13,9 @@ from pathlib import Path
 import librosa
 import numpy as np
 import soundfile as sf
+from omegaconf import OmegaConf
 
+from ..config import load_config
 from ..pipeline import run_pipeline
 from ..types import RunManifest
 
@@ -116,9 +118,21 @@ def _shape(manifest: RunManifest, out_dir: Path, clip_id: str) -> ProcessResult:
         manifest_path=str(out_dir / "manifest.json"))
 
 
-def run_on_file(audio_path: str | Path, config_path: str | Path,
-                out_root: str | Path) -> ProcessResult:
-    """Run the full pipeline on one audio file and shape the result for the UI."""
-    manifest = run_pipeline(str(audio_path), config=str(config_path), out=str(out_root))
+def run_on_file(audio_path: str | Path, config_path: str | Path, out_root: str | Path,
+                num_speakers: int | None = None) -> ProcessResult:
+    """Run the full pipeline on one audio file and shape the result for the UI.
+
+    `num_speakers` (when the user knows it) is the single biggest accuracy lever — it removes
+    the speaker-count guess, which is the main real-mode diarization failure mode.
+    """
+    cfg_path = str(config_path)
+    if num_speakers and num_speakers > 0:
+        cfg = load_config(str(config_path))
+        cfg.diarization.num_speakers = int(num_speakers)
+        tmp = Path(out_root) / "_config.yaml"
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        OmegaConf.save(cfg, tmp)
+        cfg_path = str(tmp)
+    manifest = run_pipeline(str(audio_path), config=cfg_path, out=str(out_root))
     clip_id = Path(audio_path).stem
     return _shape(manifest, Path(out_root) / clip_id, clip_id)

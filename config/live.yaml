@@ -26,7 +26,7 @@ diarization:
   clustering: spectral        # compulsory hand-applied clustering owns speaker attribution
   overlap_detector: pyannote  # pyannote supplies overlap regions only (gated-but-free)
   emit_timeline_json: true
-  embedding: auto
+  embedding: ecapa            # SpeechBrain ECAPA speaker embeddings (open) -> far better clustering
   num_speakers: null
   min_speakers: null
   max_speakers: null

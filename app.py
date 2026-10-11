@@ -179,6 +179,9 @@ upload = st.file_uploader(
     type=["wav", "mp3", "flac", "ogg", "m4a", "mpeg"],
     help="Dhvani automatically detects speakers and overlapping speech.",
 )
+n_spk = st.number_input(
+    "Number of speakers (0 = detect automatically)", min_value=0, max_value=10, value=0, step=1,
+    help="If you know how many people are talking, set it — it's the biggest accuracy boost.")
 if upload and st.button("Analyze audio", type="primary"):
     SCRATCH.mkdir(parents=True, exist_ok=True)
     raw = SCRATCH / upload.name
@@ -186,7 +189,7 @@ if upload and st.button("Analyze audio", type="primary"):
     stem = "".join(c if c.isalnum() else "_" for c in Path(upload.name).stem) or "upload"
     with st.spinner("Detecting speakers and overlap, then separating where needed…"):
         wav = transcode_to_wav(raw, SCRATCH / "in" / f"{stem}.wav")
-        result = run_on_file(wav, LIVE_CFG, SCRATCH / "out")
+        result = run_on_file(wav, LIVE_CFG, SCRATCH / "out", num_speakers=int(n_spk) or None)
     st.session_state["result"] = (result, str(wav))
 
 if "result" in st.session_state:
