@@ -15,6 +15,7 @@ speechbrain>=1.0
 # asteroid                 # optional, for Conv-TasNet baseline
 
 # ASR + alignment (fully local)
+sarvamai                 # Sarvam timestamped transcription API
 faster-whisper             # CTranslate2 Whisper runtime — int8 quant, CPU or GPU
 ctranslate2                # inference engine behind faster-whisper (also used to convert Tara)
 transformers>=4.44         # Tara / IndicConformer fallback path, model conversion

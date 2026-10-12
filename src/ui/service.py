@@ -76,6 +76,7 @@ class ProcessResult:
     speakers: list[SpeakerResult]
     timeline: list[dict]
     overlap_regions: list[dict]
+    transcript: list[dict]
     notes: list[str]
     manifest_path: str
 
@@ -93,6 +94,8 @@ def _shape(manifest: RunManifest, out_dir: Path, clip_id: str) -> ProcessResult:
     timeline_path = out_dir / "timeline.json"
     timeline = (json.loads(timeline_path.read_text(encoding="utf-8"))
                 if timeline_path.exists() else [])
+    report_path = out_dir / "report.json"
+    report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else {}
     talk = _speaking_seconds(timeline)
     duration = 0.0
     processed = out_dir / "processed.wav"
@@ -115,6 +118,7 @@ def _shape(manifest: RunManifest, out_dir: Path, clip_id: str) -> ProcessResult:
         num_separated_sources=int(art.get("num_separated_sources", 0)),
         speakers=speakers, timeline=timeline, notes=notes,
         overlap_regions=list(art.get("overlap_regions", [])),
+        transcript=list(report.get("dialogue", [])),
         manifest_path=str(out_dir / "manifest.json"))
 
 

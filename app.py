@@ -142,6 +142,7 @@ def show_results(result: ProcessResult, source_audio: str) -> None:
         "turns": result.timeline,
         "overlap_regions": overlap_regions,
         "num_speakers": result.num_speakers,
+        "transcript": getattr(result, "transcript", []),
     }
     st.download_button(
         "Download timeline JSON",
@@ -150,6 +151,14 @@ def show_results(result: ProcessResult, source_audio: str) -> None:
         mime="application/json",
         key="download_timeline",
     )
+
+    transcript = getattr(result, "transcript", [])
+    if transcript:
+        st.markdown("##### Timestamped transcript")
+        transcript_frame = pd.DataFrame(transcript)
+        visible = [column for column in ("start", "end", "speaker", "text")
+                   if column in transcript_frame.columns]
+        st.dataframe(transcript_frame[visible], use_container_width=True, hide_index=True)
 
     st.markdown("##### Separated voices")
     for spk in result.speakers:

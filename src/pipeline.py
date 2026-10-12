@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from .asr import ASRStub
+from .asr import ASRStub, SarvamASR
 from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
 from .diarization.linking import link_speakers
@@ -185,7 +185,7 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
     diar.load()
     sep = Separator(cfg.separation)
     sep.load()
-    asr = ASRStub(cfg.asr)
+    asr = SarvamASR(cfg.asr) if str(cfg.asr.backend) == "sarvam" else ASRStub(cfg.asr)
     asr.load()
 
     if len(chunks) == 1:
