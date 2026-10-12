@@ -10,6 +10,7 @@ Concrete, current model picks per stage — with the reasoning, the alternatives
 
 | Choice | ID | Role |
 | --- | --- | --- |
+| **Implemented (default-available)** | high-pass + spectral-gating denoise + BS.1770 LUFS | Dependency-light conditioning for mobile-mic / market-noise audio. `highpass_hz`, `denoise: spectral`, `normalize: lufs` (pyloudnorm). |
 | Demucs (optional) | `htdemucs` (via `demucs` pkg) | Isolate the **vocal stem** from background music. |
 | DNS denoiser (optional) | e.g. `speechbrain/sepformer-dns4` or a DNS-Challenge model | Speech enhancement / noise suppression. |
 
@@ -25,7 +26,9 @@ Concrete, current model picks per stage — with the reasoning, the alternatives
 | ⚠️ Ceiling — **OPTIONAL PAID API** | `pyannote/speaker-diarization-precision-2` (pyannoteAI cloud API) | Higher accuracy + faster, but it is a **paid** hosted API (per-use credits, not local inference). **Not part of the free/default path.** Use only if you deliberately want to benchmark the accuracy gap and accept the cost. |
 | Legacy baseline (free, local) | `pyannote/speaker-diarization-3.1` | The well-understood 3.1 pipeline, local, for comparison. |
 
-**REQUIRED — hand-applied unsupervised clustering (proposal Milestone 2).** The proposal mandates clustering speaker embeddings yourself with **"specifically Spectral Clustering or Gaussian Mixture Models (GMMs)."** So the compliant path is: use pyannote to extract embeddings (and VAD/overlap), then run **your own Spectral Clustering or GMM** to form speaker clusters — no prior speaker templates. Expose it as `diarization.clustering: spectral | gmm`, with pyannote's end-to-end `builtin` clustering kept as an optional comparison. pyannote (or any specific framework) is only an *example* in the proposal ("a framework like pyannote.audio"); the **clustering method is the compulsory part.**
+**REQUIRED — hand-applied unsupervised clustering (proposal Milestone 2).** The proposal mandates clustering speaker embeddings yourself with **"specifically Spectral Clustering or Gaussian Mixture Models (GMMs)."**
+
+**As implemented:** embeddings come from **SpeechBrain ECAPA-TDNN** (`speechbrain/spkrec-ecapa-voxceleb`, open — no gated licence, `diarization.embedding: ecapa`; MFCC-stats is the offline fallback). These feed **our own Spectral/GMM clustering** (`diarization.clustering: spectral | gmm`) with cosine affinity and cosine-silhouette speaker counting. pyannote is used **only as an optional overlap detector** (`diarization.overlap_detector: pyannote`) to populate overlap regions — not as the clusterer. pyannote (or any framework) is only an *example* in the proposal ("a framework like pyannote.audio"); the **clustering method is the compulsory part**, and ECAPA→Spectral/GMM satisfies it. For long clips, per-chunk labels are reconciled into global speakers by clustering their voiceprints (`src/diarization/linking.py`).
 
 **Gotchas.**
 - **Gated but free.** Accept the click-through conditions on Hugging Face for *both* `speaker-diarization-community-1` **and** its `segmentation` dependency, then use a free `HF_TOKEN`. Gated ≠ paid. Missing the segmentation agreement → 401. Fail loud.
@@ -129,12 +132,13 @@ ollama run qwen3:4b "hi"      # sanity check the local server
 
 ```yaml
 models:
-  denoise:      htdemucs                                   # optional; off by default
-  diarization:  pyannote/speaker-diarization-community-1   # free + local (precision-2 = optional paid API)
-  separation:   speechbrain/sepformer-wsj02mix
-  asr:          large-v3                                   # faster-whisper CT2 (int8); Tara-CT2 for Hindi/Hinglish
+  denoise:      spectral                                   # dependency-light; demucs/dns optional
+  embedding:    speechbrain/spkrec-ecapa-voxceleb          # ECAPA speaker embeddings (open) for clustering
+  overlap:      pyannote/speaker-diarization-community-1   # overlap detector only (gated-but-free); clustering is hand-applied
+  separation:   speechbrain/sepformer-wsj02mix             # config-driven: whamr (noise) / 16 kHz / convtasnet
+  asr:          large-v3                                   # faster-whisper CT2 (int8); Tara-CT2 for Hindi/Hinglish (post-midsem)
   align:        whisperx
-  llm:          gemini-2.0-flash                           # Gemini API free tier (default); optional local Ollama: qwen3:4b / qwen3:8b / ...
+  llm:          gemini-2.5-flash                           # Gemini API free tier (default); optional local Ollama (post-midsem)
 ```
 
 The acoustic stack is open-weights running locally; the LLM stage calls the Gemini API free tier by default (optional local Ollama for offline). The two credentials are both free: an HF token for pyannote's gated (not paid) licenses, and a Gemini API key.

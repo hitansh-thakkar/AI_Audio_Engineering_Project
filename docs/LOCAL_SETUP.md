@@ -12,8 +12,11 @@ This pipeline runs on **one consumer PC** with **no paid APIs and no per-token c
 | **ffmpeg** (on PATH) | audio decode/resample for Whisper & torchaudio | free |
 | **Gemini API** (`google-genai`) | LLM post-processing (Stage 5), default | free tier — needs a free `GEMINI_API_KEY` (cloud call) |
 | **Ollama** + one model *(optional)* | fully-offline LLM post-processing (Stage 5) | free, local — only if you opt out of Gemini |
+| **SpeechBrain** weights | SepFormer separation (Stage 3) + **ECAPA-TDNN** speaker embeddings (Stage 2) | free, auto-downloaded (open, no token) |
+| **pyloudnorm** + **scipy** | preprocessing: BS.1770 LUFS + high-pass (Stage 1) | free (pip) |
 | **faster-whisper** weights | ASR runtime (Stage 4), int8 CTranslate2 | free, auto-downloaded |
-| **pyannote** community-1 + segmentation | diarization (Stage 2), runs on CPU | free — needs a free HF token + click-through licenses |
+| **pyannote** community-1 + segmentation | **overlap detection** (Stage 2) on real uploads | free — needs a free HF token + click-through licenses |
+| **Streamlit** (`streamlit run app.py`) | drag-drop web UI → per-speaker audio + timeline | free, local |
 | **bert-score** model | summary metric (Stage 6) | free, auto-downloaded once (~1.4 GB) |
 
 The only keys on the default path are the free `HF_TOKEN` and `GEMINI_API_KEY`. No `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `SARVAM_API_KEY` / `PYANNOTEAI_API_KEY` is required or used.

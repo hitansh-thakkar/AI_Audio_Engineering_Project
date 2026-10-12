@@ -6,8 +6,8 @@ This is **Deliverable 2** and the intellectual core (Milestone 5: error propagat
 
 | Stage | Metrics | Tooling | Notes |
 | --- | --- | --- | --- |
-| Separation | **SI-SNRi**, **SDRi** | `torchmetrics` / `speechbrain` | Needs reference sources → synthetic mixtures. |
-| Diarization | **DER**, **JER**, speaker-count error | `pyannote.metrics` | Report with no forgiveness collar for honesty. |
+| Separation | **SI-SNRi**, **SDRi** | `src/evaluation/metrics.py` | Needs reference sources → the `overlap_mixtures` set. Both metrics are **scale-invariant** (neural output has arbitrary scale). |
+| Diarization | **DER**, speaker-count error | `src/evaluation/metrics.py` (frame-based, Hungarian label map) | No forgiveness collar, for honesty. JER / md-eval overlap scoring = post-midsem. |
 | ASR | **WER**, **CER** | `jiwer` | **Script-safe Indic normalizer only** (NFC + `indic-nlp-library`). Split by register: Hindi / English / code-switched. Also report a **read-vs-spontaneous** contrast using AIR-RS-DB's `R`/`S` labels (the style distinction that dataset exists for). |
 | LLM summary | **ROUGE-L**, **BERTScore**, factual-consistency rate | `rouge-score`, `bert-score` | `bert-score` downloads a **free** model (e.g. `roberta-large`, ~1.4 GB) from HF on first use — one-time, then cached, fully local. Consistency = fraction of report claims entailed by / overlapping the transcript, checked with the same LLM backend (Gemini by default). |
 | System | **wall-clock latency**, **peak memory** per module | `RunManifest` | Required by the brief. Measure on a fixed clip + device. |
@@ -38,9 +38,17 @@ What each comparison isolates:
 
 ## Benchmark harness
 
-- `config/ablation.yaml` enumerates the sweep. `src/evaluation/benchmark.py` runs every cell, writing one `RunManifest` per run into `outputs/runs/`.
-- `notebooks/benchmark.ipynb` loads the manifests, builds the tables/plots, and renders the headline figure. It must run **top-to-bottom without manual edits** (grader reproducibility).
-- Fix the eval set, device, and seeds; record them in every manifest.
+**Implemented (first half, one command):** `python -m src.evaluation.benchmark [--out outputs/benchmark.json]`
+reports diarization **DER + speaker-count accuracy**, separation **SI-SNRi/SDRi**, and
+**per-stage latency + peak memory** on a representative clip. Sections are selectable
+(`--diar-limit 0` / `--sep-limit 0`). `python -m src.evaluation.separation_eval` gives the
+separation-only sweep. Current numbers: diarization median DER ~0.14 (ECAPA + Spectral),
+separation median SI-SNRi +7.2 dB.
+
+**Post-midsem (full ablation):** `config/ablation.yaml` enumerates the 6-cell sweep;
+`src/evaluation/benchmark.py` would run every cell into `outputs/runs/`, and
+`notebooks/benchmark.ipynb` renders the headline figure top-to-bottom. Fix the eval set,
+device, and seeds; record them in every manifest.
 
 ## Reporting honesty
 

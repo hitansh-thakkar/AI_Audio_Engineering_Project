@@ -20,12 +20,23 @@ This ordering is also what makes the **error-propagation study** (Milestone 5 / 
 
 ```
 AudioClip
-  → Preprocessing        → AudioClip (16kHz mono, normalized, optionally denoised)
-  → Diarization          → DiarizationResult { turns[], overlap_mask }
-  → Separation (overlap) → list[SeparatedSource] for overlapped regions, mapped to speakers
-  → ASR + Alignment      → Transcript { segments[] with words[] and speaker }
-  → LLM Post-Processing   → Report { summary, tags[], dialogue[] }   (Gemini API, free tier)
+  → Preprocessing        → AudioClip (16kHz mono; optional high-pass, spectral denoise, LUFS)
+  → Diarization          → DiarizationResult { turns[], overlap_regions[] }
+                           ECAPA embeddings → hand-applied Spectral/GMM clustering (count via
+                           cosine silhouette); overlap_regions from the pyannote detector when
+                           enabled. Long clips: per-chunk labels reconciled into global speakers
+                           by voiceprint (src/diarization/linking.py).
+  → Separation (overlap) → list[SeparatedSource]: SepFormer runs on a context window around each
+                           overlap; each output stream is attributed to a diarization speaker by
+                           matching it to the mixture in that speaker's solo region, rescaled to
+                           mixture level. The orchestrator stitches each source into a full-length
+                           per-speaker track (original audio in solo turns).
+  → ASR + Alignment      → Transcript { segments[] with words[] and speaker }   (stub, post-midsem)
+  → LLM Post-Processing   → Report { summary, tags[], dialogue[] }   (Gemini API; stub, post-midsem)
   + RunManifest           (timing, memory, versions, seeds, config hash — accumulated across stages)
+
+Deliverables written per run: speakers/<spk>.wav, separated/<src>.wav, timeline.json,
+<clip>.rttm, report.json/md, manifest.json.
 ```
 
 ## Stage contract
@@ -120,9 +131,9 @@ class RunManifest:
 
 | Module | Input | Output | Key model(s) |
 | --- | --- | --- | --- |
-| `preprocessing` | raw audio | `AudioClip` (16k mono, normalized) | (optional) Demucs vocal-stem / DNS denoiser |
-| `diarization` | `AudioClip` | `DiarizationResult` | pyannote community-1 (opt. precision-2) |
-| `separation` | `AudioClip` + overlap mask | `list[SeparatedSource]` | SepFormer / Conv-TasNet |
+| `preprocessing` | raw audio | `AudioClip` (16k mono, conditioned) | high-pass + spectral-gating denoise + BS.1770 LUFS (pyloudnorm); opt. Demucs/DNS |
+| `diarization` | `AudioClip` | `DiarizationResult` | ECAPA-TDNN embeddings → hand-applied Spectral/GMM; pyannote community-1 as overlap detector (opt.) |
+| `separation` | `AudioClip` + `DiarizationResult` | `list[SeparatedSource]` | SepFormer (config-driven: whamr/16 kHz) / Conv-TasNet (Asteroid, opt.); + solo-region attribution |
 | `asr` | speaker turns (+ separated sources) | `Transcript` | faster-whisper (int8) large-v3 / Tara-CT2 / IndicConformer; WhisperX align |
 | `postprocessing` | `Transcript` | `Report` | Google Gemini API, free tier (opt. local Ollama) |
 | `evaluation` | manifests + refs | metrics, plots | jiwer, pyannote.metrics |
@@ -134,10 +145,13 @@ See `docs/MODELS.md` for exact model IDs, reasons, and gotchas.
 All behavior is driven by `config/default.yaml`. The ablation-relevant switches:
 
 - `diarization.source: real | oracle`
-- `diarization.backend: community1 | legacy31` (local, free) `| precision2` (optional paid API)
-- `diarization.clustering: spectral | gmm` (**required** hand-applied unsupervised clustering of embeddings — proposal Milestone 2) `| builtin` (pyannote's end-to-end clustering, optional comparison)
+- `diarization.clustering: spectral | gmm` (**required** hand-applied unsupervised clustering of embeddings — proposal Milestone 2)
+- `diarization.embedding: auto | mfcc` (offline fallback) `| ecapa` (SpeechBrain, recommended)
+- `diarization.overlap_detector: none | pyannote` (gated-but-free; populates overlap_regions)
+- `diarization.num_speakers / vad_top_db / window_seconds / window_hop` (counting + segmentation knobs)
 - `separation.mode: none | overlap | everywhere`
-- `separation.backend: sepformer | convtasnet`
+- `separation.backend: sepformer | resepformer | whamr | wham | convtasnet`, with `separation.model`, `model_sample_rate`, `context_seconds`
+- `preprocessing.highpass_hz / denoise (none|spectral) / normalize (peak|lufs|none) / target_lufs`
 - `asr.backend: faster_whisper | indicconformer` (with `asr.model` selecting large-v3 / Tara-CT2 / distil / medium / small)
 - `postprocessing.backend: gemini` (free API, default) `| ollama` (optional local) `| api` (optional paid)
 
