@@ -26,7 +26,10 @@ diarization:
   clustering: spectral    # REQUIRED (proposal M2): spectral | gmm = hand-applied clustering of embeddings | builtin = pyannote end-to-end
   overlap_detector: none  # none | pyannote (gated-but-free model → overlap regions for separation; needs HF_TOKEN + accepted licence)
   emit_timeline_json: true  # REQUIRED M2 deliverable: time->speaker timeline JSON alongside the RTTM
-  embedding: auto         # auto = pyannote if available else MFCC-stats fallback
+  embedding: auto         # auto/mfcc = MFCC-stats (offline) | ecapa = SpeechBrain ECAPA (better)
+  vad_top_db: 30          # energy-VAD silence threshold (dB below peak)
+  window_seconds: 1.5     # embedding window length over VAD regions
+  window_hop: 0.75        # embedding window hop
   num_speakers: null
   min_speakers: null
   max_speakers: null

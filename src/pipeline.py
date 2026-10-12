@@ -13,14 +13,16 @@ import gc
 import json
 import time
 import tracemalloc
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
+import numpy as np
 import soundfile as sf
 
 from .asr import ASRStub
 from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
+from .diarization.linking import link_speakers
 from .diarization.rttm import write_rttm
 from .postprocessing import PostProcessorStub
 from .preprocessing import Preprocessor, chunk_audio
@@ -86,9 +88,9 @@ def _timed(fn):
 
 
 def _run_chunked(chunks, chunk_seconds, diar, sep, asr, stages):
-    """Process a long clip window-by-window: offset each chunk's timestamps and accumulate
-    one StageResult per stage (summed time, peak memory, notes). Speaker labels are per-chunk
-    — cross-chunk speaker linking is future work (noted in the manifest)."""
+    """Process a long clip window-by-window: offset each chunk's timestamps, then reconcile the
+    per-chunk speaker labels into global ones by voiceprint (so one person keeps one label
+    across the whole broadcast). Accumulates one StageResult per stage."""
     names = ("diarization", "separation", "asr")
     acc_t: dict[str, float] = {n: 0.0 for n in names}
     acc_m: dict[str, float] = {n: 0.0 for n in names}
@@ -97,9 +99,11 @@ def _run_chunked(chunks, chunk_seconds, diar, sep, asr, stages):
     all_overlaps: list[tuple[float, float]] = []
     all_segments: list[TranscriptSegment] = []
     all_separated = []
+    prov_audio: dict[str, np.ndarray] = {}        # provisional per-chunk label -> its audio
 
     for idx, ch in enumerate(chunks):
         off = idx * chunk_seconds
+        sr = ch.sample_rate
         dnotes: list[str] = []
         dres, dt, dm = _timed(lambda ch=ch, n=dnotes: diar.run(ch, n))
         snotes: list[str] = []
@@ -113,13 +117,32 @@ def _run_chunked(chunks, chunk_seconds, diar, sep, asr, stages):
             acc_m[name] = max(acc_m[name], mem)
             acc_notes[name] += [f"chunk{idx}: {x}" for x in ns]
 
-        all_turns += [SpeakerTurn(t.start + off, t.end + off, t.speaker) for t in dres.turns]
+        # make this chunk's labels globally unique, and collect each speaker's audio for linking
+        prov = {spk: f"c{idx}_{spk}" for spk in {t.speaker for t in dres.turns}}
+        for spk, plabel in prov.items():
+            segs = [ch.samples[int(t.start * sr):int(t.end * sr)]
+                    for t in dres.turns if t.speaker == spk]
+            prov_audio[plabel] = np.concatenate(segs) if segs else np.zeros(0, dtype=np.float32)
+
+        all_turns += [SpeakerTurn(t.start + off, t.end + off, prov[t.speaker]) for t in dres.turns]
         all_overlaps += [(s + off, e + off) for (s, e) in dres.overlap_regions]
-        all_separated += separated
-        all_segments += [TranscriptSegment(s.start + off, s.end + off, s.speaker, s.text, s.words, s.lang)
+        all_separated += [replace(s, speaker=prov.get(s.speaker, s.speaker),
+                                   region=(s.region[0] + off, s.region[1] + off)) for s in separated]
+        all_segments += [TranscriptSegment(s.start + off, s.end + off,
+                                           prov.get(s.speaker, s.speaker), s.text, s.words, s.lang)
                          for s in tr.segments]
 
-    note = f"processed {len(chunks)} chunks of <= {chunk_seconds:g}s (per-chunk speaker labels)"
+    # reconcile per-chunk labels into global speakers by clustering their voiceprints
+    label_map = link_speakers(prov_audio, int(chunks[0].sample_rate),
+                              str(diar.cfg.embedding), str(diar.cfg.clustering),
+                              int(diar.run_cfg.seed), acc_notes["diarization"])
+    all_turns = [replace(t, speaker=label_map.get(t.speaker, t.speaker)) for t in all_turns]
+    all_separated = [replace(s, speaker=label_map.get(s.speaker, s.speaker)) for s in all_separated]
+    all_segments = [replace(s, speaker=label_map.get(s.speaker, s.speaker)) for s in all_segments]
+    num_speakers = len(set(label_map.values())) if label_map else len({t.speaker for t in all_turns})
+
+    note = (f"processed {len(chunks)} chunks of <= {chunk_seconds:g}s; "
+            f"linked to {num_speakers} speaker(s) across chunks")
     versions = {"diarization": diar.version, "separation": sep.version, "asr": asr.version}
     for name in names:
         stages.append(StageResult(name=name, version=versions[name],
@@ -127,7 +150,7 @@ def _run_chunked(chunks, chunk_seconds, diar, sep, asr, stages):
                                   notes=acc_notes[name] + [note]))
     diarization = DiarizationResult(
         turns=sorted(all_turns, key=lambda t: t.start), overlap_regions=all_overlaps,
-        num_speakers=len({t.speaker for t in all_turns}))
+        num_speakers=num_speakers)
     return diarization, all_separated, Transcript(segments=all_segments)
 
 

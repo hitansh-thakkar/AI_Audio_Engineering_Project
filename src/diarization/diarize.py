@@ -54,8 +54,11 @@ class Diarizer:
     # -------------------------------------------------------------------- real
     def _real(self, clip: AudioClip, notes: list[str]) -> DiarizationResult:
         sr = clip.sample_rate
-        regions = energy_vad(clip.samples, sr, top_db=30)
-        segments = window_segments(regions)
+        top_db = int(getattr(self.cfg, "vad_top_db", 30))
+        win = float(getattr(self.cfg, "window_seconds", 1.5))
+        hop = float(getattr(self.cfg, "window_hop", 0.75))
+        regions = energy_vad(clip.samples, sr, top_db=top_db)
+        segments = window_segments(regions, win=win, hop=hop)
         if len(segments) <= 1:
             notes.append("<=1 speech segment detected; treating clip as a single speaker")
             end = clip.duration

@@ -29,6 +29,9 @@ diarization:
   overlap_detector: pyannote  # pyannote supplies overlap regions only (gated-but-free)
   emit_timeline_json: true
   embedding: ecapa            # SpeechBrain ECAPA speaker embeddings (open) -> far better clustering
+  vad_top_db: 30
+  window_seconds: 1.5
+  window_hop: 0.75
   num_speakers: null
   min_speakers: null
   max_speakers: null

@@ -34,15 +34,6 @@ def _sep_cfg(backend: str, model: str, model_sr: int) -> DictConfig:
         max_speakers_supported=2, context_seconds=3.0))
 
 
-def _scale_align(est: np.ndarray, ref: np.ndarray, eps: float = 1e-8) -> np.ndarray:
-    """Scale est to best match ref's amplitude (neural separators output arbitrary scale);
-    required before raw SDR, which is not scale-invariant. SI-SNR needs no such step."""
-    est = est.astype(np.float64)
-    ref = ref.astype(np.float64)
-    alpha = float(np.dot(est, ref) / (np.dot(est, est) + eps))
-    return alpha * est
-
-
 def _speaker_ref_paths(manifest_row: dict, root: Path) -> dict[str, Path]:
     """Map diarization speaker label (spk1, spk2, ...) -> clean reference wav."""
     sources = manifest_row["sources"]
@@ -93,7 +84,7 @@ def evaluate(root: Path, backend: str, model: str, model_sr: int,
             if n < sr // 10:          # skip sub-100 ms slivers
                 continue
             si = si_snri(est[:n], ref[:n], mixseg[:n])
-            sd = sdri(_scale_align(est[:n], ref[:n]), ref[:n], mixseg[:n])
+            sd = sdri(est[:n], ref[:n], mixseg[:n])   # sdri is now scale-invariant
             si_vals.append(si)
             sdr_vals.append(sd)
             rows.append({"id": row["id"], "speaker": src.speaker,

@@ -37,6 +37,18 @@ def test_si_snri_positive_when_estimate_better_than_mixture():
     assert sdri(estimate, ref, mixture) > 0
 
 
+def test_sdri_is_scale_invariant():
+    # neural separators output arbitrary scale; SDRi must not change when the estimate is rescaled
+    rng = np.random.default_rng(3)
+    ref = rng.standard_normal(16000).astype(np.float32)
+    interferer = rng.standard_normal(16000).astype(np.float32)
+    mixture = ref + interferer
+    estimate = ref + 0.1 * interferer
+    base = sdri(estimate, ref, mixture)
+    assert abs(sdri(10.0 * estimate, ref, mixture) - base) < 1e-3
+    assert base > 0
+
+
 def test_wer_cer_basic():
     assert wer("hello world", "hello world") == 0.0
     assert wer("a b c d", "a b x d") == 0.25

@@ -92,9 +92,13 @@ def si_snri(estimate: np.ndarray, reference: np.ndarray, mixture: np.ndarray) ->
 
 
 def sdri(estimate: np.ndarray, reference: np.ndarray, mixture: np.ndarray, eps: float = 1e-8) -> float:
-    """SDR improvement (non-scale-invariant SDR of est vs mixture, both against reference)."""
+    """SDR improvement. The estimate is least-squares rescaled to the reference first, so the
+    metric is scale-invariant — essential because neural separators emit arbitrary scale
+    (otherwise a correctly-separated-but-loud source scores hugely negative)."""
     def sdr(e: np.ndarray, r: np.ndarray) -> float:
         e, r = _align(e, r)
+        alpha = np.dot(e, r) / (np.dot(e, e) + eps)   # optimal scale of e onto r
+        e = alpha * e
         return float(10 * np.log10((np.dot(r, r) + eps) / (np.dot(r - e, r - e) + eps)))
     return round(sdr(estimate, reference) - sdr(mixture, reference), 4)
 
