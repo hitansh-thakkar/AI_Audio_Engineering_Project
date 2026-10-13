@@ -75,7 +75,8 @@ class SarvamASR:
         words = [
             Word(text=text, start=float(start), end=float(end))
             for text, start, end in zip(
-                timestamps.words, timestamps.start_time_seconds, timestamps.end_time_seconds
+                timestamps.words, timestamps.start_time_seconds, timestamps.end_time_seconds,
+                strict=False,
             )
         ]
         return [TranscriptSegment(words[0].start, words[-1].end, speaker,

@@ -34,7 +34,8 @@ def _cosine_affinity(emb: np.ndarray) -> np.ndarray:
 def _estimate_k(emb: np.ndarray, ks: list[int], seed: int) -> int:
     """Pick the speaker count by the best cosine silhouette over candidate k (shared by both
     clustering backends — silhouette on the embedding geometry is a more reliable counter than
-    GMM's BIC, which badly over-/under-counts speakers)."""
+    GMM's BIC, which badly over-/under-counts speakers). Auto-counting is still imperfect; set
+    diarization.num_speakers (UI 'Number of speakers') when known for the cleanest result."""
     best_k, best_score = ks[0], -2.0
     for k in ks:
         labels = _fit_spectral(emb, k, seed)

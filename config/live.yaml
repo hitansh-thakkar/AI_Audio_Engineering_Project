@@ -14,7 +14,7 @@ preprocessing:
   target_sample_rate: 16000
   mono: true
   highpass_hz: 70 # mobile-mic rumble / mains hum (proposal's real-world audio)
-  denoise: spectral # attenuate stationary market/village background noise
+  denoise: none # spectral denoise distorts ECAPA embeddings -> speaker over-count; keep off on the diarization path
   normalize: lufs # consistent loudness across recordings
   target_lufs: -23.0
   trim_silence: true
