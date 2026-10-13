@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dhvani / Clean audio</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
+      :root {
+        --ink: #172225;
+        --muted: #687477;
+        --paper: #f4f0e8;
+        --panel: #fffdf8;
+        --line: #d8d2c5;
+        --mint: #8fc4ae;
+        --coral: #ef765f;
+        --dark: #243337;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: Manrope, sans-serif;
+      }
+      body:before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.25;
+        background-image: radial-gradient(#9a8d76 0.65px, transparent 0.65px);
+        background-size: 18px 18px;
+      }
+      main {
+        width: min(1120px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 34px 0 64px;
+        position: relative;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        padding-bottom: 34px;
+      }
+      .kicker {
+        font:
+          500 12px "DM Mono",
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--coral);
+      }
+      h1 {
+        font-size: clamp(2.6rem, 6vw, 5.3rem);
+        line-height: 0.95;
+        letter-spacing: -0.06em;
+        max-width: 650px;
+        margin: 14px 0 18px;
+      }
+      .intro {
+        color: var(--muted);
+        max-width: 560px;
+        font-size: 1.03rem;
+        line-height: 1.65;
+      }
+      .stage {
+        font:
+          500 12px "DM Mono",
+          monospace;
+        border: 1px solid var(--line);
+        padding: 9px 12px;
+        white-space: nowrap;
+        background: #ebe5da;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 14px 35px #514a3d0b;
+      }
+      .upload-panel {
+        min-height: 450px;
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+      }
+      .drop {
+        border: 1.5px dashed #a8aaa0;
+        border-radius: 6px;
+        min-height: 230px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 24px;
+        cursor: pointer;
+        transition: 0.2s;
+        background: #fbfaf5;
+      }
+      .drop:hover,
+      .drop.drag {
+        border-color: var(--coral);
+        background: #fff5ed;
+      }
+      .drop strong {
+        display: block;
+        font-size: 1.15rem;
+        margin-bottom: 8px;
+      }
+      .drop span {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      input[type="file"] {
+        display: none;
+      }
+      .file-name {
+        margin-top: 18px;
+        color: var(--dark);
+        font:
+          500 13px "DM Mono",
+          monospace;
+        min-height: 20px;
+      }
+      .controls {
+        padding: 30px;
+      }
+      .panel-title {
+        margin: 0 0 22px;
+        font-size: 1.15rem;
+        letter-spacing: -0.02em;
+      }
+      label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 20px 0 8px;
+      }
+      label b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      select,
+      input[type="range"] {
+        width: 100%;
+      }
+      select {
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 11px;
+        background: white;
+        color: var(--ink);
+        font: inherit;
+      }
+      input[type="range"] {
+        accent-color: var(--coral);
+      }
+      .range-value {
+        font:
+          500 12px "DM Mono",
+          monospace;
+        color: var(--coral);
+      }
+      .check {
+        justify-content: flex-start;
+        margin-top: 24px;
+      }
+      .check input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--coral);
+      }
+      button,
+      .download {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border: 0;
+        border-radius: 4px;
+        padding: 14px 18px;
+        font:
+          700 0.9rem Manrope,
+          sans-serif;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      button {
+        background: var(--dark);
+        color: white;
+        width: 100%;
+        margin-top: auto;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .download {
+        background: var(--mint);
+        color: var(--ink);
+        margin-top: 18px;
+        width: 100%;
+      }
+      #status {
+        min-height: 25px;
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .error {
+        color: #b23b2d !important;
+      }
+      .results {
+        margin-top: 18px;
+        padding: 30px;
+        display: none;
+        animation: rise 0.35s ease-out;
+      }
+      .results.show {
+        display: block;
+      }
+      .result-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: baseline;
+      }
+      .result-head h2 {
+        margin: 0;
+        font-size: 1.55rem;
+        letter-spacing: -0.04em;
+      }
+      .badge {
+        font:
+          500 12px "DM Mono",
+          monospace;
+        color: #36745e;
+        background: #e2f0e9;
+        padding: 7px 9px;
+      }
+      .players {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 24px;
+      }
+      .player {
+        border-top: 3px solid var(--coral);
+        padding-top: 13px;
+      }
+      .player:nth-child(2) {
+        border-color: var(--mint);
+      }
+      .player small {
+        display: block;
+        color: var(--muted);
+        font:
+          500 11px "DM Mono",
+          monospace;
+        margin-bottom: 7px;
+      }
+      audio {
+        width: 100%;
+        height: 38px;
+      }
+      .stats {
+        display: flex;
+        gap: 24px;
+        margin-top: 22px;
+        flex-wrap: wrap;
+      }
+      .stat strong {
+        display: block;
+        font-size: 1.15rem;
+      }
+      .stat span {
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+      .notes {
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.5;
+        margin-top: 18px;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (max-width: 760px) {
+        main {
+          width: min(100% - 24px, 560px);
+          padding-top: 22px;
+        }
+        header {
+          display: block;
+        }
+        .stage {
+          display: inline-block;
+          margin-top: 18px;
+        }
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .upload-panel {
+          min-height: 380px;
+        }
+        .players {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="kicker">Dhvani / audio lab</div>
+          <h1>Make the recording easier to hear.</h1>
+          <p class="intro">
+            Stage 1 prepares a rough recording for everything that follows: it
+            evens out volume, softens steady background noise, removes low
+            rumble, and gives you a clean WAV to inspect.
+          </p>
+        </div>
+        <div class="stage">01 / preprocessing only</div>
+      </header>
+      <section class="workspace">
+        <div class="panel upload-panel">
+          <label class="drop" id="drop"
+            ><input
+              id="file"
+              type="file"
+              accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a"
+            /><span
+              ><strong>Drop an audio file here</strong>or click to browse<br />WAV,
+              MP3, FLAC, OGG, M4A</span
+            ></label
+          >
+          <div class="file-name" id="fileName">No file selected</div>
+          <div id="status"></div>
+          <button id="process" disabled>Process audio</button>
+        </div>
+        <div class="panel controls">
+          <h2 class="panel-title">Clean-up recipe</h2>
+          <label for="denoise"><b>Background noise</b></label
+          ><select id="denoise">
+            <option value="spectral">Reduce steady noise</option>
+            <option value="none">Leave noise unchanged</option>
+          </select>
+          <label for="normalize"><b>Volume scaling</b></label
+          ><select id="normalize">
+            <option value="peak">Even out peak volume</option>
+            <option value="lufs">Broadcast loudness (LUFS)</option>
+            <option value="none">Keep original level</option>
+          </select>
+          <label for="rumble"
+            ><b>Low rumble filter</b
+            ><span class="range-value" id="rumbleValue">70 Hz</span></label
+          ><input
+            id="rumble"
+            type="range"
+            min="0"
+            max="180"
+            step="10"
+            value="70"
+          />
+          <label class="check"
+            ><input id="trim" type="checkbox" checked /><span
+              ><b>Trim leading and trailing silence</b></span
+            ></label
+          >
+          <p class="notes">
+            Noise reduction targets steady ambience such as fans, road wash,
+            market beds, and some animal sounds. It is not speaker separation or
+            a guarantee against every changing background voice.
+          </p>
+        </div>
+      </section>
+      <section class="panel results" id="results">
+        <div class="result-head">
+          <h2>Processed audio</h2>
+          <span class="badge">Stage 1 complete</span>
+        </div>
+        <div class="players">
+          <div class="player">
+            <small>ORIGINAL</small><audio id="original" controls></audio>
+          </div>
+          <div class="player">
+            <small>PROCESSED WAV</small><audio id="processed" controls></audio>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <strong id="duration">--</strong><span>seconds</span>
+          </div>
+          <div class="stat">
+            <strong id="format">16 kHz / mono</strong><span>output format</span>
+          </div>
+          <div class="stat">
+            <strong id="peak">--</strong><span>peak level</span>
+          </div>
+        </div>
+        <a class="download" id="download">Download preprocessed WAV</a>
+        <div class="notes" id="resultNotes"></div>
+      </section>
+    </main>
+    <script>
+      const fileInput = document.getElementById("file"),
+        drop = document.getElementById("drop"),
+        processButton = document.getElementById("process"),
+        fileName = document.getElementById("fileName"),
+        status = document.getElementById("status"),
+        rumble = document.getElementById("rumble"),
+        rumbleValue = document.getElementById("rumbleValue"),
+        results = document.getElementById("results");
+      let selected = null;
+      rumble.addEventListener(
+        "input",
+        () => (rumbleValue.textContent = `${rumble.value} Hz`),
+      );
+      drop.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => pick(fileInput.files[0]));
+      ["dragenter", "dragover"].forEach((e) =>
+        drop.addEventListener(e, (x) => {
+          x.preventDefault();
+          drop.classList.add("drag");
+        }),
+      );
+      ["dragleave", "drop"].forEach((e) =>
+        drop.addEventListener(e, (x) => {
+          x.preventDefault();
+          drop.classList.remove("drag");
+        }),
+      );
+      drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
+      function pick(file) {
+        if (!file) return;
+        selected = file;
+        fileName.textContent = `${file.name}  /  ${(file.size / 1048576).toFixed(2)} MB`;
+        processButton.disabled = false;
+        status.textContent = "Ready when you are.";
+        status.className = "";
+        document.getElementById("original").src = URL.createObjectURL(file);
+      }
+      processButton.addEventListener("click", async () => {
+        if (!selected) return;
+        processButton.disabled = true;
+        status.textContent = "Conditioning audio…";
+        status.className = "";
+        const data = new FormData();
+        data.append("audio", selected);
+        data.append("filename", selected.name);
+        data.append("denoise", document.getElementById("denoise").value);
+        data.append("normalize", document.getElementById("normalize").value);
+        data.append("highpass_hz", rumble.value);
+        data.append(
+          "trim_silence",
+          document.getElementById("trim").checked ? "true" : "false",
+        );
+        try {
+          const response = await fetch("/api/process", {
+            method: "POST",
+            body: data,
+          });
+          const result = await response.json();
+          if (!response.ok)
+            throw new Error(result.error || "Processing failed");
+          document.getElementById("processed").src = result.download_url;
+          document.getElementById("download").href = result.download_url;
+          document.getElementById("duration").textContent =
+            result.output.duration_s;
+          document.getElementById("peak").textContent = result.output.peak;
+          document.getElementById("resultNotes").textContent = result.notes
+            .length
+            ? result.notes.join(" ")
+            : "All selected steps completed locally.";
+          results.classList.add("show");
+          status.textContent = "Done. Listen to the before / after pair below.";
+        } catch (error) {
+          status.textContent = error.message;
+          status.className = "error";
+        } finally {
+          processButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
