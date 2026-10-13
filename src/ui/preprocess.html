@@ -3,18 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dhvani / Clean audio</title>
+    <title>Dhvani / audio journey</title>
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap");
       :root {
         --ink: #172225;
-        --muted: #687477;
-        --paper: #f4f0e8;
+        --muted: #6c7776;
+        --paper: #f2eee5;
         --panel: #fffdf8;
-        --line: #d8d2c5;
+        --line: #d8d1c3;
         --mint: #8fc4ae;
-        --coral: #ef765f;
+        --coral: #ee765f;
         --dark: #243337;
+        --yellow: #e8bc68;
       }
       * {
         box-sizing: border-box;
@@ -30,14 +31,14 @@
         position: fixed;
         inset: 0;
         pointer-events: none;
-        opacity: 0.25;
+        opacity: 0.22;
         background-image: radial-gradient(#9a8d76 0.65px, transparent 0.65px);
         background-size: 18px 18px;
       }
       main {
-        width: min(1120px, calc(100% - 40px));
+        width: min(1100px, calc(100% - 36px));
         margin: 0 auto;
-        padding: 34px 0 64px;
+        padding: 34px 0 70px;
         position: relative;
       }
       header {
@@ -45,43 +46,71 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 24px;
-        padding-bottom: 34px;
+        padding-bottom: 28px;
       }
-      .kicker {
+      .kicker,
+      .mono {
         font:
           500 12px "DM Mono",
           monospace;
         letter-spacing: 0.08em;
         text-transform: uppercase;
+      }
+      .kicker {
         color: var(--coral);
       }
       h1 {
-        font-size: clamp(2.6rem, 6vw, 5.3rem);
-        line-height: 0.95;
+        font-size: clamp(2.7rem, 6vw, 5.4rem);
+        line-height: 0.94;
         letter-spacing: -0.06em;
-        max-width: 650px;
+        max-width: 700px;
         margin: 14px 0 18px;
       }
       .intro {
         color: var(--muted);
-        max-width: 560px;
-        font-size: 1.03rem;
+        max-width: 600px;
+        font-size: 1rem;
         line-height: 1.65;
       }
-      .stage {
-        font:
-          500 12px "DM Mono",
-          monospace;
+      .stage-label {
         border: 1px solid var(--line);
+        background: #ebe5da;
         padding: 9px 12px;
         white-space: nowrap;
-        background: #ebe5da;
       }
-      .workspace {
+      .rail {
         display: grid;
-        grid-template-columns: 1.15fr 0.85fr;
-        gap: 18px;
-        align-items: start;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin: 8px 0 18px;
+      }
+      .rail-item {
+        color: #9aa09b;
+        border-top: 3px solid #d9d3c7;
+        padding: 12px 3px;
+        transition: 0.35s;
+        cursor: not-allowed;
+      }
+      .rail-item.active {
+        color: var(--ink);
+        border-color: var(--coral);
+      }
+      .rail-item.done {
+        color: #36745e;
+        border-color: var(--mint);
+        cursor: pointer;
+      }
+      .rail-item strong {
+        display: block;
+        font-size: 1rem;
+      }
+      .rail-item span {
+        display: block;
+        margin-top: 4px;
+        font:
+          500 11px "DM Mono",
+          monospace;
+        text-transform: uppercase;
       }
       .panel {
         background: var(--panel);
@@ -89,23 +118,51 @@
         border-radius: 8px;
         box-shadow: 0 14px 35px #514a3d0b;
       }
-      .upload-panel {
-        min-height: 450px;
-        padding: 30px;
+      .carousel {
+        overflow: hidden;
+      }
+      .slides {
         display: flex;
-        flex-direction: column;
+        width: 400%;
+        transition: transform 0.65s cubic-bezier(0.22, 0.8, 0.25, 1);
+      }
+      .slide {
+        width: 25%;
+        min-height: 450px;
+        padding: 34px;
+      }
+      .slide-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 30px;
+        align-items: center;
+        min-height: 380px;
+      }
+      h2 {
+        font-size: 2rem;
+        line-height: 1;
+        letter-spacing: -0.05em;
+        margin: 10px 0 14px;
+      }
+      h3 {
+        margin: 0 0 12px;
+      }
+      .lede {
+        color: var(--muted);
+        line-height: 1.65;
+        max-width: 540px;
       }
       .drop {
         border: 1.5px dashed #a8aaa0;
         border-radius: 6px;
-        min-height: 230px;
+        min-height: 240px;
         display: grid;
         place-items: center;
         text-align: center;
         padding: 24px;
         cursor: pointer;
-        transition: 0.2s;
         background: #fbfaf5;
+        transition: 0.2s;
       }
       .drop:hover,
       .drop.drag {
@@ -125,63 +182,14 @@
         display: none;
       }
       .file-name {
-        margin-top: 18px;
-        color: var(--dark);
-        font:
-          500 13px "DM Mono",
-          monospace;
+        margin-top: 14px;
         min-height: 20px;
+        color: var(--dark);
       }
-      .controls {
-        padding: 30px;
-      }
-      .panel-title {
-        margin: 0 0 22px;
-        font-size: 1.15rem;
-        letter-spacing: -0.02em;
-      }
-      label {
+      .button-row {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 14px;
-        color: var(--muted);
-        font-size: 0.9rem;
-        margin: 20px 0 8px;
-      }
-      label b {
-        color: var(--ink);
-        font-weight: 600;
-      }
-      select,
-      input[type="range"] {
-        width: 100%;
-      }
-      select {
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        padding: 11px;
-        background: white;
-        color: var(--ink);
-        font: inherit;
-      }
-      input[type="range"] {
-        accent-color: var(--coral);
-      }
-      .range-value {
-        font:
-          500 12px "DM Mono",
-          monospace;
-        color: var(--coral);
-      }
-      .check {
-        justify-content: flex-start;
+        gap: 10px;
         margin-top: 24px;
-      }
-      .check input {
-        width: 18px;
-        height: 18px;
-        accent-color: var(--coral);
       }
       button,
       .download {
@@ -190,9 +198,9 @@
         align-items: center;
         border: 0;
         border-radius: 4px;
-        padding: 14px 18px;
+        padding: 13px 17px;
         font:
-          700 0.9rem Manrope,
+          700 0.88rem Manrope,
           sans-serif;
         cursor: pointer;
         text-decoration: none;
@@ -200,110 +208,196 @@
       button {
         background: var(--dark);
         color: white;
-        width: 100%;
-        margin-top: auto;
       }
       button:disabled {
         opacity: 0.45;
         cursor: not-allowed;
       }
+      .secondary {
+        background: #e9e4d9;
+        color: var(--ink);
+      }
       .download {
         background: var(--mint);
         color: var(--ink);
-        margin-top: 18px;
-        width: 100%;
       }
-      #status {
-        min-height: 25px;
-        margin-top: 16px;
-        color: var(--muted);
-        font-size: 0.88rem;
-      }
-      .error {
-        color: #b23b2d !important;
-      }
-      .results {
-        margin-top: 18px;
-        padding: 30px;
-        display: none;
-        animation: rise 0.35s ease-out;
-      }
-      .results.show {
-        display: block;
-      }
-      .result-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 18px;
-        align-items: baseline;
-      }
-      .result-head h2 {
-        margin: 0;
-        font-size: 1.55rem;
-        letter-spacing: -0.04em;
-      }
-      .badge {
-        font:
-          500 12px "DM Mono",
-          monospace;
-        color: #36745e;
-        background: #e2f0e9;
-        padding: 7px 9px;
-      }
-      .players {
+      .visual {
+        min-height: 270px;
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-top: 24px;
+        place-items: center;
+        border: 1px solid var(--line);
+        background: #fbfaf5;
+        padding: 20px;
       }
-      .player {
-        border-top: 3px solid var(--coral);
-        padding-top: 13px;
+      .pulse {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        height: 130px;
       }
-      .player:nth-child(2) {
-        border-color: var(--mint);
+      .pulse i {
+        width: 5px;
+        background: var(--coral);
+        border-radius: 5px;
+        animation: pulse 1.1s ease-in-out infinite alternate;
       }
-      .player small {
+      .pulse i:nth-child(3n) {
+        background: var(--mint);
+        animation-delay: 0.2s;
+      }
+      .pulse i:nth-child(4n) {
+        animation-delay: 0.5s;
+      }
+      @keyframes pulse {
+        from {
+          height: 18px;
+          opacity: 0.45;
+        }
+        to {
+          height: 110px;
+          opacity: 1;
+        }
+      }
+      .loader {
+        width: 100%;
+        height: 5px;
+        background: #e7e1d7;
+        overflow: hidden;
+        margin-top: 22px;
+      }
+      .loader:after {
+        content: "";
         display: block;
+        width: 38%;
+        height: 100%;
+        background: var(--coral);
+        animation: load 1.5s ease-in-out infinite;
+      }
+      @keyframes load {
+        from {
+          transform: translateX(-110%);
+        }
+        to {
+          transform: translateX(300%);
+        }
+      }
+      .metric-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 22px 0;
+      }
+      .metric {
+        background: #f0ece3;
+        padding: 13px 15px;
+        min-width: 125px;
+      }
+      .metric b {
+        display: block;
+        font-size: 1.35rem;
+      }
+      .metric span {
         color: var(--muted);
+        font-size: 0.75rem;
+      }
+      .timeline {
+        position: relative;
+        border-left: 2px solid var(--line);
+        margin: 22px 0;
+        padding-left: 12px;
+      }
+      .turn {
+        position: relative;
+        min-height: 42px;
+        margin-bottom: 7px;
+      }
+      .turn-bar {
+        height: 28px;
+        border-radius: 3px;
+        background: var(--mint);
+        padding: 5px 8px;
         font:
           500 11px "DM Mono",
           monospace;
-        margin-bottom: 7px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .turn:nth-child(2n) .turn-bar {
+        background: var(--yellow);
+      }
+      .overlap {
+        color: #b23b2d;
+        background: #f8ddd5;
+        border-left: 3px solid var(--coral);
+        padding: 10px 12px;
+        margin-top: 14px;
+      }
+      .speaker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 14px;
+        margin-top: 22px;
+      }
+      .speaker {
+        border-top: 3px solid var(--mint);
+        padding: 15px 0 0;
+      }
+      .speaker:nth-child(2n) {
+        border-color: var(--coral);
+      }
+      .speaker small {
+        display: block;
+        color: var(--muted);
+        margin-bottom: 8px;
       }
       audio {
         width: 100%;
         height: 38px;
       }
-      .stats {
-        display: flex;
-        gap: 24px;
-        margin-top: 22px;
-        flex-wrap: wrap;
-      }
-      .stat strong {
-        display: block;
-        font-size: 1.15rem;
-      }
-      .stat span {
-        color: var(--muted);
-        font-size: 0.76rem;
-      }
-      .notes {
-        color: var(--muted);
-        font-size: 0.8rem;
-        line-height: 1.5;
+      details {
         margin-top: 18px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
       }
-      @keyframes rise {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
+      summary {
+        cursor: pointer;
+        color: var(--muted);
+        font:
+          500 12px "DM Mono",
+          monospace;
+        text-transform: uppercase;
+      }
+      pre {
+        max-height: 200px;
+        overflow: auto;
+        background: #f3efe7;
+        padding: 14px;
+        font:
+          12px "DM Mono",
+          monospace;
+        white-space: pre-wrap;
+      }
+      .status {
+        min-height: 23px;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .error {
+        color: #b23b2d;
+      }
+      .skip {
+        border: 1px dashed var(--line);
+        padding: 20px;
+        margin-top: 20px;
+        color: var(--muted);
+      }
+      .stage-output {
+        margin-top: 20px;
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
       }
       @media (max-width: 760px) {
         main {
@@ -313,18 +407,24 @@
         header {
           display: block;
         }
-        .stage {
+        .stage-label {
           display: inline-block;
           margin-top: 18px;
         }
-        .workspace {
+        .slide-grid {
           grid-template-columns: 1fr;
         }
-        .upload-panel {
-          min-height: 380px;
+        .slide {
+          padding: 24px;
         }
-        .players {
-          grid-template-columns: 1fr;
+        .slide-grid {
+          min-height: 0;
+        }
+        .rail-item strong {
+          font-size: 0.82rem;
+        }
+        .rail-item span {
+          font-size: 9px;
         }
       }
     </style>
@@ -334,120 +434,209 @@
       <header>
         <div>
           <div class="kicker">Dhvani / audio lab</div>
-          <h1>Make the recording easier to hear.</h1>
+          <h1>From rough recording to speaker tracks.</h1>
           <p class="intro">
-            Stage 1 prepares a rough recording for everything that follows: it
-            evens out volume, softens steady background noise, removes low
-            rumble, and gives you a clean WAV to inspect.
+            One calm pass through the audio pipeline. Each stage opens as it
+            finishes, so you can see what happened before the next
+            transformation begins.
           </p>
         </div>
-        <div class="stage">01 / preprocessing only</div>
+        <div class="stage-label mono">01—04 / local pipeline</div>
       </header>
-      <section class="workspace">
-        <div class="panel upload-panel">
-          <label class="drop" id="drop"
-            ><input
-              id="file"
-              type="file"
-              accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a"
-            /><span
-              ><strong>Drop an audio file here</strong>or click to browse<br />WAV,
-              MP3, FLAC, OGG, M4A</span
-            ></label
-          >
-          <div class="file-name" id="fileName">No file selected</div>
-          <div id="status"></div>
-          <button id="process" disabled>Process audio</button>
+      <nav class="rail" aria-label="Processing stages">
+        <div class="rail-item active" data-rail="0">
+          <strong>01</strong><span>Prep</span>
         </div>
-        <div class="panel controls">
-          <h2 class="panel-title">Clean-up recipe</h2>
-          <label for="denoise"><b>Background noise</b></label
-          ><select id="denoise">
-            <option value="spectral">Reduce steady noise</option>
-            <option value="none">Leave noise unchanged</option>
-          </select>
-          <label for="normalize"><b>Volume scaling</b></label
-          ><select id="normalize">
-            <option value="peak">Even out peak volume</option>
-            <option value="lufs">Broadcast loudness (LUFS)</option>
-            <option value="none">Keep original level</option>
-          </select>
-          <label for="rumble"
-            ><b>Low rumble filter</b
-            ><span class="range-value" id="rumbleValue">70 Hz</span></label
-          ><input
-            id="rumble"
-            type="range"
-            min="0"
-            max="180"
-            step="10"
-            value="70"
-          />
-          <label class="check"
-            ><input id="trim" type="checkbox" checked /><span
-              ><b>Trim leading and trailing silence</b></span
-            ></label
-          >
-          <p class="notes">
-            Noise reduction targets steady ambience such as fans, road wash,
-            market beds, and some animal sounds. It is not speaker separation or
-            a guarantee against every changing background voice.
-          </p>
+        <div class="rail-item" data-rail="1">
+          <strong>02</strong><span>Diarization</span>
         </div>
-      </section>
-      <section class="panel results" id="results">
-        <div class="result-head">
-          <h2>Processed audio</h2>
-          <span class="badge">Stage 1 complete</span>
+        <div class="rail-item" data-rail="2">
+          <strong>03</strong><span>Separation</span>
         </div>
-        <div class="players">
-          <div class="player">
-            <small>ORIGINAL</small><audio id="original" controls></audio>
-          </div>
-          <div class="player">
-            <small>PROCESSED WAV</small><audio id="processed" controls></audio>
-          </div>
+        <div class="rail-item" data-rail="3">
+          <strong>04</strong><span>Speaker files</span>
         </div>
-        <div class="stats">
-          <div class="stat">
-            <strong id="duration">--</strong><span>seconds</span>
-          </div>
-          <div class="stat">
-            <strong id="format">16 kHz / mono</strong><span>output format</span>
-          </div>
-          <div class="stat">
-            <strong id="peak">--</strong><span>peak level</span>
-          </div>
+      </nav>
+      <section class="panel carousel">
+        <div class="slides" id="slides">
+          <article class="slide">
+            <div class="slide-grid">
+              <div>
+                <div class="kicker">Start here</div>
+                <h2>Bring in the conversation.</h2>
+                <p class="lede">
+                  Upload one recording. Dhvani automatically conditions it for
+                  the next stages by reducing steady background noise, removing
+                  low rumble, scaling the level, and trimming silence.
+                </p>
+                <label class="drop" id="drop"
+                  ><input
+                    id="file"
+                    type="file"
+                    accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a"
+                  /><span
+                    ><strong>Drop an audio file here</strong>or click to
+                    browse<br />WAV, MP3, FLAC, OGG, M4A</span
+                  ></label
+                >
+                <div class="file-name mono" id="fileName">No file selected</div>
+                <div class="button-row">
+                  <button id="start" disabled>Start the journey</button>
+                </div>
+                <div class="status" id="status"></div>
+                <div class="stage-output" id="prepResult"></div>
+              </div>
+              <div class="visual">
+                <div>
+                  <div class="kicker">Automatic recipe</div>
+                  <div class="metric-row">
+                    <div class="metric"><b>16k</b><span>sample rate</span></div>
+                    <div class="metric">
+                      <b>mono</b><span>audio shape</span>
+                    </div>
+                    <div class="metric">
+                      <b>clean</b><span>noise pass</span>
+                    </div>
+                  </div>
+                  <p class="lede">
+                    The recipe is fixed here so the journey stays simple. The
+                    underlying stage remains swappable in
+                    <span class="mono">src/preprocessing</span>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="slide">
+            <div class="slide-grid">
+              <div>
+                <div class="kicker">Stage 02 / who spoke when</div>
+                <h2>Find the voices in time.</h2>
+                <p class="lede">
+                  Energy regions, embeddings, and clustering turn the
+                  conditioned waveform into a speaker timeline. The chart below
+                  is the same structured result written to JSON.
+                </p>
+                <div class="loader"></div>
+                <div class="status" id="diarStatus">
+                  Waiting for preprocessing…
+                </div>
+              </div>
+              <div class="visual">
+                <div class="pulse" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+            </div>
+            <div id="diarResult"></div>
+          </article>
+          <article class="slide">
+            <div class="slide-grid">
+              <div>
+                <div class="kicker">Stage 03 / only where voices merge</div>
+                <h2>Untangle the overlap.</h2>
+                <p class="lede">
+                  Separation is surgical: it runs only inside intervals where
+                  more than one speaker is active. When the timeline has no
+                  merged interval, this stage is skipped and the reason is
+                  recorded.
+                </p>
+                <div class="status" id="sepStatus">
+                  Waiting for diarization…
+                </div>
+              </div>
+              <div class="visual">
+                <div>
+                  <div class="kicker">Decision gate</div>
+                  <div class="metric-row">
+                    <div class="metric">
+                      <b id="overlapCount">--</b><span>merged intervals</span>
+                    </div>
+                    <div class="metric">
+                      <b id="sourceCount">--</b><span>separated sources</span>
+                    </div>
+                  </div>
+                  <p class="lede" id="sepNote">
+                    The separator will load only if needed.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div id="sepResult"></div>
+          </article>
+          <article class="slide">
+            <div class="slide-grid">
+              <div>
+                <div class="kicker">Stage 04 / listen and download</div>
+                <h2>Meet the individual tracks.</h2>
+                <p class="lede">
+                  Each speaker gets a full-length WAV. Solo speech stays in
+                  place; merged intervals use the assigned separated source when
+                  available.
+                </p>
+                <div class="button-row">
+                  <button class="secondary" id="reset">
+                    Process another file
+                  </button>
+                </div>
+              </div>
+              <div class="visual">
+                <div>
+                  <div class="kicker">Output</div>
+                  <div class="metric-row">
+                    <div class="metric">
+                      <b id="speakerCount">--</b><span>speaker files</span>
+                    </div>
+                    <div class="metric">
+                      <b>WAV</b><span>download format</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="speaker-grid" id="speakers"></div>
+          </article>
         </div>
-        <a class="download" id="download">Download preprocessed WAV</a>
-        <div class="notes" id="resultNotes"></div>
       </section>
     </main>
     <script>
-      const fileInput = document.getElementById("file"),
-        drop = document.getElementById("drop"),
-        processButton = document.getElementById("process"),
-        fileName = document.getElementById("fileName"),
-        status = document.getElementById("status"),
-        rumble = document.getElementById("rumble"),
-        rumbleValue = document.getElementById("rumbleValue"),
-        results = document.getElementById("results");
-      let selected = null;
-      rumble.addEventListener(
-        "input",
-        () => (rumbleValue.textContent = `${rumble.value} Hz`),
+      const $ = (id) => document.getElementById(id);
+      let selected = null,
+        job = null,
+        maxStage = 0;
+      const slides = $("slides"),
+        rail = [...document.querySelectorAll("[data-rail]")];
+      function go(index) {
+        slides.style.transform = `translateX(-${index * 25}%)`;
+        rail.forEach(
+          (item, i) =>
+            (item.className = `rail-item ${i === index ? "active" : ""} ${i < index ? "done" : ""}`),
+        );
+      }
+      rail.forEach((item, index) =>
+        item.addEventListener("click", () => {
+          if (index <= maxStage) go(index);
+        }),
       );
+      function message(id, text, error = false) {
+        $(id).textContent = text;
+        $(id).className = `status ${error ? "error" : ""}`;
+      }
+      const drop = $("drop"),
+        fileInput = $("file");
       drop.addEventListener("click", () => fileInput.click());
       fileInput.addEventListener("change", () => pick(fileInput.files[0]));
-      ["dragenter", "dragover"].forEach((e) =>
-        drop.addEventListener(e, (x) => {
-          x.preventDefault();
+      ["dragenter", "dragover"].forEach((event) =>
+        drop.addEventListener(event, (e) => {
+          e.preventDefault();
           drop.classList.add("drag");
         }),
       );
-      ["dragleave", "drop"].forEach((e) =>
-        drop.addEventListener(e, (x) => {
-          x.preventDefault();
+      ["dragleave", "drop"].forEach((event) =>
+        drop.addEventListener(event, (e) => {
+          e.preventDefault();
           drop.classList.remove("drag");
         }),
       );
@@ -455,52 +644,108 @@
       function pick(file) {
         if (!file) return;
         selected = file;
-        fileName.textContent = `${file.name}  /  ${(file.size / 1048576).toFixed(2)} MB`;
-        processButton.disabled = false;
-        status.textContent = "Ready when you are.";
-        status.className = "";
-        document.getElementById("original").src = URL.createObjectURL(file);
+        $("fileName").textContent =
+          `${file.name}  /  ${(file.size / 1048576).toFixed(2)} MB`;
+        $("start").disabled = false;
+        message("status", "Ready. Stage 1 will begin locally.");
       }
-      processButton.addEventListener("click", async () => {
-        if (!selected) return;
-        processButton.disabled = true;
-        status.textContent = "Conditioning audio…";
-        status.className = "";
-        const data = new FormData();
-        data.append("audio", selected);
-        data.append("filename", selected.name);
-        data.append("denoise", document.getElementById("denoise").value);
-        data.append("normalize", document.getElementById("normalize").value);
-        data.append("highpass_hz", rumble.value);
-        data.append(
-          "trim_silence",
-          document.getElementById("trim").checked ? "true" : "false",
+      async function post(path, body) {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Stage failed");
+        return data;
+      }
+      function timeline(data) {
+        const total = data.duration_s || 1;
+        return `<div class="metric-row"><div class="metric"><b>${data.num_speakers}</b><span>speakers found</span></div><div class="metric"><b>${data.turns.length}</b><span>speaker turns</span></div><div class="metric"><b>${data.overlap_regions.length}</b><span>merged intervals</span></div></div><div class="timeline">${data.turns.map((turn) => `<div class="turn"><div class="turn-bar" style="width:${Math.max(8, ((turn.end_s - turn.start_s) / total) * 100)}%">${turn.speaker} · ${turn.start}—${turn.end}</div></div>`).join("")}</div>${data.overlap_regions.length ? `<div class="overlap">${data.overlap_regions.length} merged interval(s) marked for Stage 3.</div>` : '<div class="skip">No merged intervals found. Stage 3 will pass through without loading a separator.</div>'}<details><summary>Open timeline JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+      }
+      function escape(value) {
+        return value.replace(
+          /[&<>]/g,
+          (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[char],
         );
+      }
+      $("start").addEventListener("click", async () => {
+        if (!selected) return;
+        $("start").disabled = true;
+        maxStage = 0;
         try {
-          const response = await fetch("/api/process", {
+          go(0);
+          message("status", "Conditioning audio…");
+          const form = new FormData();
+          form.append("audio", selected);
+          form.append("filename", selected.name);
+          const prep = await fetch("/api/process", {
             method: "POST",
-            body: data,
+            body: form,
           });
-          const result = await response.json();
-          if (!response.ok)
-            throw new Error(result.error || "Processing failed");
-          document.getElementById("processed").src = result.download_url;
-          document.getElementById("download").href = result.download_url;
-          document.getElementById("duration").textContent =
-            result.output.duration_s;
-          document.getElementById("peak").textContent = result.output.peak;
-          document.getElementById("resultNotes").textContent = result.notes
-            .length
-            ? result.notes.join(" ")
-            : "All selected steps completed locally.";
-          results.classList.add("show");
-          status.textContent = "Done. Listen to the before / after pair below.";
+          const prepData = await prep.json();
+          if (!prep.ok)
+            throw new Error(prepData.error || "Preprocessing failed");
+          job = prepData.job_id;
+          maxStage = 1;
+          $("prepResult").innerHTML =
+            `<div class="mono">Processed output</div><audio controls src="${prepData.download_url}"></audio><a class="download" href="${prepData.download_url}">Download processed WAV</a><details><summary>Open preprocessing JSON</summary><pre>${escape(JSON.stringify(prepData, null, 2))}</pre></details>`;
+          message("status", "Stage 1 complete. Opening diarization…");
+          go(1);
+          message("diarStatus", "Mapping speakers and building the timeline…");
+          const diar = await post("/api/diarize", { job_id: job });
+          $("diarResult").innerHTML = timeline(diar);
+          message(
+            "diarStatus",
+            diar.notes.length ? diar.notes.join(" ") : "Timeline ready.",
+          );
+          $("overlapCount").textContent = diar.overlap_regions.length;
+          maxStage = 2;
+          go(2);
+          message(
+            "sepStatus",
+            diar.overlap_regions.length
+              ? "Merged intervals found. Running separation…"
+              : "No merged intervals. Separation skipped.",
+          );
+          const sep = await post("/api/separate", { job_id: job });
+          $("sourceCount").textContent = sep.separated_sources.length;
+          $("sepNote").textContent =
+            sep.notes.join(" ") || "Separated sources are ready.";
+          $("sepResult").innerHTML =
+            `${sep.separated_sources.length ? `<details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}`;
+          message(
+            "sepStatus",
+            sep.skipped
+              ? "Stage 3 complete without separation."
+              : "Stage 3 complete.",
+          );
+          $("speakerCount").textContent = sep.speaker_files.length;
+          $("speakers").innerHTML = sep.speaker_files
+            .map(
+              (file) =>
+                `<div class="speaker"><small class="mono">${file.speaker}</small><audio controls src="${file.url}"></audio><a class="download" href="${file.url}">Download ${file.speaker}.wav</a></div>`,
+            )
+            .join("");
+          maxStage = 3;
+          go(3);
         } catch (error) {
-          status.textContent = error.message;
-          status.className = "error";
-        } finally {
-          processButton.disabled = false;
+          message("status", error.message, true);
+          message("diarStatus", "The journey stopped here.", true);
+          message("sepStatus", "Waiting for the previous stage.", true);
+          $("start").disabled = false;
         }
+      });
+      $("reset").addEventListener("click", () => {
+        selected = null;
+        job = null;
+        maxStage = 0;
+        fileInput.value = "";
+        $("fileName").textContent = "No file selected";
+        $("prepResult").innerHTML = "";
+        $("start").disabled = true;
+        go(0);
+        message("status", "Choose another recording.");
       });
     </script>
   </body>

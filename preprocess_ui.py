@@ -6,7 +6,6 @@ Then open http://127.0.0.1:8765
 from __future__ import annotations
 
 import json
-import mimetypes
 import os
 import re
 import uuid
@@ -17,7 +16,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from src.ui.preprocess_service import make_upload_dir, process_upload
+from src.ui.preprocess_service import (
+    make_upload_dir,
+    process_upload,
+    run_diarization,
+    run_separation,
+)
 
 REPO = Path(__file__).resolve().parent
 HTML_PATH = REPO / "src" / "ui" / "preprocess.html"
@@ -74,10 +78,42 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(path.read_bytes())
             return
+        if parsed.path == "/api/file":
+            values = parse_qs(parsed.query)
+            job = values.get("job", [""])[0]
+            kind = values.get("kind", [""])[0]
+            name = values.get("name", [""])[0]
+            if kind not in {"speakers", "separated"} or not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid audio file request"})
+                return
+            path = (OUTPUT_ROOT / job / kind / name).resolve()
+            if not path.is_file() or OUTPUT_ROOT.resolve() not in path.parents:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Audio file not found"})
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "audio/wav")
+            self.send_header("Content-Disposition", f'attachment; filename="{path.name}"')
+            self.send_header("Content-Length", str(path.stat().st_size))
+            self.end_headers()
+            self.wfile.write(path.read_bytes())
+            return
         self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 
     def do_POST(self) -> None:  # noqa: N802
-        if urlparse(self.path).path != "/api/process":
+        route = urlparse(self.path).path
+        if route in {"/api/diarize", "/api/separate"}:
+            length = int(self.headers.get("Content-Length", "0"))
+            try:
+                payload = json.loads(self.rfile.read(length))
+                job_id = str(payload["job_id"])
+                result = (run_diarization(job_id, OUTPUT_ROOT)
+                          if route == "/api/diarize" else run_separation(job_id, OUTPUT_ROOT))
+                self._json(HTTPStatus.OK, result)
+            except Exception as exc:
+                self._json(HTTPStatus.UNPROCESSABLE_ENTITY,
+                           {"error": f"Stage failed: {type(exc).__name__}: {exc}"})
+            return
+        if route != "/api/process":
             self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
             return
         length = int(self.headers.get("Content-Length", "0"))
@@ -97,10 +133,6 @@ class Handler(BaseHTTPRequestHandler):
             result = process_upload(
                 source,
                 OUTPUT_ROOT,
-                denoise=str(fields.get("denoise", "spectral")),
-                normalize=str(fields.get("normalize", "peak")),
-                highpass_hz=int(float(str(fields.get("highpass_hz", "70")))),
-                trim_silence=str(fields.get("trim_silence", "true")) == "true",
             )
             result["download_url"] = f"/api/download?job={result['job_id']}"
             self._json(HTTPStatus.OK, result)
