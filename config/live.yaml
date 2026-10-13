@@ -14,7 +14,8 @@ preprocessing:
   target_sample_rate: 16000
   mono: true
   highpass_hz: 70 # mobile-mic rumble / mains hum (proposal's real-world audio)
-  denoise: none # spectral denoise distorts ECAPA embeddings -> speaker over-count; keep off on the diarization path
+  denoise: none # keep OFF on the diarization path (distorts ECAPA embeddings -> speaker over-count)
+  denoise_output: spectral # clean the final per-speaker tracks instead (market/village noise)
   normalize: lufs # consistent loudness across recordings
   target_lufs: -23.0
   trim_silence: true
@@ -26,7 +27,7 @@ diarization:
   backend: community1
   model: pyannote/speaker-diarization-community-1
   clustering: spectral # compulsory hand-applied clustering owns speaker attribution
-  overlap_detector: pyannote # pyannote supplies overlap regions only (gated-but-free)
+  overlap_detector: none # overlaps inferred from diarized turns (fast); pyannote = slower, gated, more accurate
   emit_timeline_json: true
   embedding: ecapa # SpeechBrain ECAPA speaker embeddings (open) -> far better clustering
   vad_top_db: 30

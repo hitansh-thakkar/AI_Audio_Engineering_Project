@@ -87,16 +87,14 @@ class Diarizer:
         num = len(set(labels.tolist()))
 
         # Speaker attribution above is from the compulsory hand-applied clustering. Overlap
-        # regions (simultaneous speech) come from a dedicated detector when enabled; single-
-        # stream VAD cannot find them. Degrades to [] with a clear note if unavailable.
+        # regions (simultaneous speech) come from the pyannote detector when enabled; otherwise
+        # they are inferred from overlapping diarized turns (fast, no gated model).
         detector = OverlapDetector(self.cfg, self.run_cfg)
         overlap_regions = detector.detect(clip, notes) if detector.enabled else []
         if not overlap_regions:
-            inferred = compute_overlaps(merged)
-            if inferred:
-                overlap_regions = inferred
+            overlap_regions = compute_overlaps(merged)
+            if overlap_regions:
                 notes.append("overlap regions inferred from overlapping diarized turns")
-        if not detector.enabled:
-            notes.append("overlap detection off (diarization.overlap_detector=none); "
-                         "overlap_regions left empty")
+            else:
+                notes.append("no overlapping speech detected")
         return DiarizationResult(turns=merged, overlap_regions=overlap_regions, num_speakers=num)

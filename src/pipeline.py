@@ -26,6 +26,7 @@ from .diarization.linking import link_speakers
 from .diarization.rttm import write_rttm
 from .postprocessing import PostProcessorStub
 from .preprocessing import Preprocessor, chunk_audio
+from .preprocessing.preprocess import spectral_denoise
 from .separation import Separator
 from .separation.stitch import build_speaker_tracks
 from .stage import measure, set_seeds
@@ -40,17 +41,24 @@ from .types import (
 )
 
 
-def _write_speaker_tracks(clip, diarization, separated, out_dir: Path) -> list[str]:
+def _write_speaker_tracks(clip, diarization, separated, out_dir: Path,
+                          denoise_output: bool = False) -> list[str]:
     """Write one full-length WAV per speaker: original audio in their solo turns, their
-    assigned separated source inside overlap regions (mix fallback if unassigned)."""
+    assigned separated source inside overlap regions (mix fallback if unassigned).
+
+    `denoise_output` denoises only these final tracks (for the proposal's market-noise case)
+    without touching the signal diarization/separation ran on — denoising that path distorts
+    the speaker embeddings and over-counts speakers.
+    """
     speaker_dir = out_dir / "speakers"
     speaker_dir.mkdir(exist_ok=True)
     tracks = build_speaker_tracks(
         clip, diarization.turns, diarization.overlap_regions, separated)
     paths: list[str] = []
     for speaker in sorted(tracks):
+        track = spectral_denoise(tracks[speaker], clip.sample_rate) if denoise_output else tracks[speaker]
         path = speaker_dir / f"{speaker}.wav"
-        sf.write(path, tracks[speaker], clip.sample_rate)
+        sf.write(path, track, clip.sample_rate)
         paths.append(str(path))
     return paths
 
@@ -209,7 +217,9 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
     # RTTM: the standard NIST diarization format, alongside the timeline JSON
     rttm_path = out_dir / f"{clip_id}.rttm"
     write_rttm(diarization.turns, clip_id, rttm_path)
-    speaker_audio_paths = _write_speaker_tracks(clip, diarization, separated, out_dir)
+    speaker_audio_paths = _write_speaker_tracks(
+        clip, diarization, separated, out_dir,
+        denoise_output=str(getattr(cfg.preprocessing, "denoise_output", "none")) == "spectral")
 
     # write any separated sources (from overlap/everywhere separation above) to disk
     separated_audio_paths: list[str] = []

@@ -12,7 +12,8 @@ preprocessing:
   target_sample_rate: 16000
   mono: true
   highpass_hz: 0          # 0 = off; e.g. 70 removes mobile-mic rumble / mains hum
-  denoise: none           # none | spectral (dependency-light gating) | demucs | dns (optional heavy)
+  denoise: none           # none | spectral — on the DIARIZATION path (distorts embeddings; prefer denoise_output)
+  denoise_output: none    # none | spectral — denoise only the final per-speaker tracks (safe; market-noise case)
   normalize: peak         # peak | lufs | none
   target_lufs: -23.0      # used when normalize: lufs (ITU-R BS.1770 integrated loudness)
   trim_silence: true
