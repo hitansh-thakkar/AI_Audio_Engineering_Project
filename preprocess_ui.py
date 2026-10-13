@@ -16,6 +16,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import numpy as np
+import soundfile as sf
+
 from src.ui.preprocess_service import (
     make_upload_dir,
     process_upload,
@@ -97,6 +100,32 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(path.read_bytes())
             return
+        if parsed.path == "/api/waveform":
+            values = parse_qs(parsed.query)
+            job = values.get("job", [""])[0]
+            kind = values.get("kind", [""])[0]
+            name = values.get("name", [""])[0]
+            valid_name = re.fullmatch(r"[A-Za-z0-9_.-]+", name)
+            valid_kind = kind in {"processed", "speakers", "separated"}
+            if not valid_kind or not valid_name or not re.fullmatch(r"[0-9a-f]{32}", job):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid waveform request"})
+                return
+            relative = Path("processed.wav") if kind == "processed" else Path(kind) / name
+            path = (OUTPUT_ROOT / job / relative).resolve()
+            if not path.is_file() or OUTPUT_ROOT.resolve() not in path.parents:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Audio file not found"})
+                return
+            samples, _ = sf.read(str(path), dtype="float32")
+            if samples.ndim > 1:
+                samples = samples.mean(axis=1)
+            buckets = 260
+            step = max(1, len(samples) // buckets)
+            values = [float(np.max(np.abs(samples[i:i + step]))) for i in range(0, len(samples), step)]
+            values = values[:buckets]
+            peak = max(values, default=0.0)
+            normalized = [round(value / peak, 4) for value in values] if peak else values
+            self._json(HTTPStatus.OK, {"samples": normalized, "peak": round(peak, 4)})
+            return
         self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -135,6 +164,9 @@ class Handler(BaseHTTPRequestHandler):
                 OUTPUT_ROOT,
             )
             result["download_url"] = f"/api/download?job={result['job_id']}"
+            result["waveform_url"] = (
+                f"/api/waveform?job={result['job_id']}&kind=processed&name=processed.wav"
+            )
             self._json(HTTPStatus.OK, result)
         except Exception as exc:
             self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": f"Could not process this file: {type(exc).__name__}: {exc}"})

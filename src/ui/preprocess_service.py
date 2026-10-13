@@ -156,6 +156,7 @@ def run_separation(job_id: str, output_root: str | Path) -> dict[str, object]:
             "speaker": source.speaker,
             "region": {"start_s": source.region[0], "end_s": source.region[1]},
             "url": f"/api/file?job={job_id}&kind=separated&name={path.name}",
+            "waveform_url": f"/api/waveform?job={job_id}&kind=separated&name={path.name}",
         })
 
     speaker_dir = job_dir / "speakers"
@@ -168,6 +169,7 @@ def run_separation(job_id: str, output_root: str | Path) -> dict[str, object]:
         speaker_files.append({
             "speaker": speaker,
             "url": f"/api/file?job={job_id}&kind=speakers&name={path.name}",
+            "waveform_url": f"/api/waveform?job={job_id}&kind=speakers&name={path.name}",
         })
 
     payload = {

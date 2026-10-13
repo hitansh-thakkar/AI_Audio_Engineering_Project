@@ -78,39 +78,62 @@
         padding: 9px 12px;
         white-space: nowrap;
       }
-      .rail {
+      .carousel-nav {
+        display: flex;
+        justify-content: center;
+        gap: 18px;
+        margin: 18px 0 8px;
+      }
+      .carousel-dot {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
-        margin: 8px 0 18px;
-      }
-      .rail-item {
-        color: #9aa09b;
-        border-top: 3px solid #d9d3c7;
-        padding: 12px 3px;
-        transition: 0.35s;
-        cursor: not-allowed;
-      }
-      .rail-item.active {
-        color: var(--ink);
-        border-color: var(--coral);
-      }
-      .rail-item.done {
-        color: #36745e;
-        border-color: var(--mint);
-        cursor: pointer;
-      }
-      .rail-item strong {
-        display: block;
-        font-size: 1rem;
-      }
-      .rail-item span {
-        display: block;
-        margin-top: 4px;
+        justify-items: center;
+        gap: 6px;
+        color: var(--muted);
         font:
-          500 11px "DM Mono",
+          500 10px "DM Mono",
           monospace;
         text-transform: uppercase;
+      }
+      .carousel-dot input {
+        position: absolute;
+        opacity: 0;
+      }
+      .carousel-dot span {
+        width: 13px;
+        height: 13px;
+        border: 2px solid #b8b4aa;
+        border-radius: 50%;
+        transition: 0.25s;
+      }
+      .carousel-dot input:checked + span {
+        border-color: var(--coral);
+        background: var(--coral);
+        box-shadow: 0 0 0 4px #f6c5b9;
+      }
+      .carousel-dot.available {
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .side-nav {
+        position: absolute;
+        top: 50%;
+        z-index: 2;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        padding: 0;
+        transform: translateY(-50%);
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+      .side-nav.prev {
+        left: 12px;
+      }
+      .side-nav.next {
+        right: 12px;
+      }
+      .side-nav:disabled {
+        opacity: 0.25;
       }
       .progress-wrap {
         display: grid;
@@ -129,13 +152,20 @@
         width: 0%;
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, var(--coral), var(--yellow), var(--mint));
+        background: linear-gradient(
+          90deg,
+          var(--coral),
+          var(--yellow),
+          var(--mint)
+        );
         transition: width 0.45s ease;
       }
       .progress-label {
         min-width: 132px;
         color: var(--muted);
-        font: 500 11px "DM Mono", monospace;
+        font:
+          500 11px "DM Mono",
+          monospace;
         text-align: right;
         text-transform: uppercase;
       }
@@ -146,6 +176,7 @@
         box-shadow: 0 14px 35px #514a3d0b;
       }
       .carousel {
+        position: relative;
         overflow: hidden;
       }
       .slides {
@@ -383,6 +414,14 @@
         width: 100%;
         height: 38px;
       }
+      .waveform {
+        display: block;
+        width: 100%;
+        height: 74px;
+        margin: 10px 0;
+        border: 1px solid var(--line);
+        background: #f3efe7;
+      }
       details {
         margin-top: 18px;
         border-top: 1px solid var(--line);
@@ -463,11 +502,11 @@
         .slide-grid {
           min-height: 0;
         }
-        .rail-item strong {
-          font-size: 0.82rem;
+        .carousel-nav {
+          gap: 10px;
         }
-        .rail-item span {
-          font-size: 9px;
+        .carousel-dot {
+          font-size: 8px;
         }
       }
     </style>
@@ -486,22 +525,10 @@
         </div>
         <div class="stage-label mono">01—04 / local pipeline</div>
       </header>
-      <nav class="rail" aria-label="Processing stages">
-        <div class="rail-item active" data-rail="0">
-          <strong>01</strong><span>Prep</span>
-        </div>
-        <div class="rail-item" data-rail="1">
-          <strong>02</strong><span>Diarization</span>
-        </div>
-        <div class="rail-item" data-rail="2">
-          <strong>03</strong><span>Separation</span>
-        </div>
-        <div class="rail-item" data-rail="3">
-          <strong>04</strong><span>Speaker files</span>
-        </div>
-      </nav>
       <div class="progress-wrap" aria-live="polite">
-        <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-track">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
         <div class="progress-label" id="progressLabel">Waiting for audio</div>
       </div>
       <section class="panel carousel">
@@ -646,31 +673,118 @@
             <div class="speaker-grid" id="speakers"></div>
           </article>
         </div>
+        <button
+          class="side-nav prev"
+          id="prevStep"
+          aria-label="Previous stage"
+          title="Previous stage"
+        >
+          ‹
+        </button>
+        <button
+          class="side-nav next"
+          id="nextStep"
+          aria-label="Next stage"
+          title="Next stage"
+        >
+          ›
+        </button>
+        <div class="carousel-nav" aria-label="Choose a completed stage">
+          <label class="carousel-dot available"
+            ><input type="radio" name="stage" value="0" checked /><span></span
+            >Prep</label
+          >
+          <label class="carousel-dot"
+            ><input type="radio" name="stage" value="1" /><span></span
+            >Diarization</label
+          >
+          <label class="carousel-dot"
+            ><input type="radio" name="stage" value="2" /><span></span
+            >Separation</label
+          >
+          <label class="carousel-dot"
+            ><input type="radio" name="stage" value="3" /><span></span
+            >Speakers</label
+          >
+        </div>
       </section>
     </main>
     <script>
       const $ = (id) => document.getElementById(id);
       let selected = null,
         job = null,
-        maxStage = 0;
+        maxStage = 0,
+        currentStage = 0;
       const slides = $("slides"),
-        rail = [...document.querySelectorAll("[data-rail]")];
+        dots = [...document.querySelectorAll('input[name="stage"]')],
+        dotLabels = [...document.querySelectorAll(".carousel-dot")];
+      const waveColors = [
+        "#ee765f",
+        "#56a88e",
+        "#d29b3f",
+        "#668cc4",
+        "#9b77b7",
+        "#c66f91",
+      ];
       function progress(percent, label) {
         $("progressBar").style.width = `${percent}%`;
         $("progressLabel").textContent = `${Math.round(percent)}% · ${label}`;
       }
       function go(index) {
+        currentStage = index;
         slides.style.transform = `translateX(-${index * 25}%)`;
-        rail.forEach(
-          (item, i) =>
-            (item.className = `rail-item ${i === index ? "active" : ""} ${i < index ? "done" : ""}`),
+        dots.forEach((dot, i) => (dot.checked = i === index));
+        dotLabels.forEach((label, i) =>
+          label.classList.toggle("available", i <= maxStage),
         );
+        $("prevStep").disabled = index === 0;
+        $("nextStep").disabled = index >= maxStage;
       }
-      rail.forEach((item, index) =>
-        item.addEventListener("click", () => {
+      dots.forEach((dot) =>
+        dot.addEventListener("change", () => {
+          const index = Number(dot.value);
           if (index <= maxStage) go(index);
+          else dots[currentStage].checked = true;
         }),
       );
+      $("prevStep").addEventListener("click", () =>
+        go(Math.max(0, currentStage - 1)),
+      );
+      $("nextStep").addEventListener("click", () =>
+        go(Math.min(maxStage, currentStage + 1)),
+      );
+      async function drawWaveform(url, canvas, color) {
+        const response = await fetch(url);
+        if (!response.ok) return;
+        const data = await response.json();
+        const ratio = window.devicePixelRatio || 1;
+        const width = canvas.clientWidth || 500;
+        const height = canvas.clientHeight || 74;
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        const context = canvas.getContext("2d");
+        context.scale(ratio, ratio);
+        context.clearRect(0, 0, width, height);
+        context.fillStyle = "#f3efe7";
+        context.fillRect(0, 0, width, height);
+        context.strokeStyle = "#d8d1c3";
+        context.beginPath();
+        context.moveTo(0, height / 2);
+        context.lineTo(width, height / 2);
+        context.stroke();
+        context.fillStyle = color;
+        const values = data.samples || [];
+        const barWidth = width / Math.max(values.length, 1);
+        values.forEach((value, index) => {
+          const barHeight = Math.max(1.5, value * (height * 0.44));
+          context.fillRect(
+            index * barWidth,
+            height / 2 - barHeight,
+            Math.max(1, barWidth - 0.7),
+            barHeight * 2,
+          );
+        });
+      }
       function message(id, text, error = false) {
         $(id).textContent = text;
         $(id).className = `status ${error ? "error" : ""}`;
@@ -743,7 +857,8 @@
           progress(25, "Preprocessing complete");
           maxStage = 1;
           $("prepResult").innerHTML =
-            `<div class="mono">Processed output</div><audio controls src="${prepData.download_url}"></audio><a class="download" href="${prepData.download_url}">Download processed WAV</a><details><summary>Open preprocessing JSON</summary><pre>${escape(JSON.stringify(prepData, null, 2))}</pre></details>`;
+            `<div class="mono">Processed waveform</div><canvas class="waveform" id="prepWave" aria-label="Processed audio waveform"></canvas><audio controls src="${prepData.download_url}"></audio><a class="download" href="${prepData.download_url}">Download processed WAV</a><details><summary>Open preprocessing JSON</summary><pre>${escape(JSON.stringify(prepData, null, 2))}</pre></details>`;
+          drawWaveform(prepData.waveform_url, $("prepWave"), waveColors[0]);
           message("status", "Stage 1 complete. Opening diarization…");
           go(1);
           progress(30, "Diarization running");
@@ -768,9 +883,19 @@
           $("sourceCount").textContent = sep.separated_sources.length;
           $("sepNote").textContent =
             sep.notes.join(" ") || "Separated sources are ready.";
-          progress(75, sep.skipped ? "Separation skipped" : "Separation complete");
+          progress(
+            75,
+            sep.skipped ? "Separation skipped" : "Separation complete",
+          );
           $("sepResult").innerHTML =
-            `${sep.separated_sources.length ? `<div class="source-grid">${sep.separated_sources.map((source, index) => `<div class="source-card"><small class="mono">SOURCE ${String(index + 1).padStart(2, "0")} · ${source.speaker}</small><div class="mono">${source.region.start_s.toFixed(2)}s — ${source.region.end_s.toFixed(2)}s</div><audio controls src="${source.url}"></audio><a class="download" href="${source.url}">Download source</a></div>`).join("")}</div><details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}`;
+            `${sep.separated_sources.length ? `<div class="source-grid">${sep.separated_sources.map((source, index) => `<div class="source-card"><small class="mono">SOURCE ${String(index + 1).padStart(2, "0")} · ${source.speaker}</small><div class="mono">${source.region.start_s.toFixed(2)}s — ${source.region.end_s.toFixed(2)}s</div><canvas class="waveform" id="sourceWave${index}" aria-label="Separated source waveform"></canvas><audio controls src="${source.url}"></audio><a class="download" href="${source.url}">Download source</a></div>`).join("")}</div><details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}`;
+          sep.separated_sources.forEach((source, index) =>
+            drawWaveform(
+              source.waveform_url,
+              $("sourceWave" + index),
+              waveColors[index % waveColors.length],
+            ),
+          );
           message(
             "sepStatus",
             sep.skipped
@@ -781,9 +906,16 @@
           $("speakers").innerHTML = sep.speaker_files
             .map(
               (file) =>
-                `<div class="speaker"><small class="mono">${file.speaker}</small><audio controls src="${file.url}"></audio><a class="download" href="${file.url}">Download ${file.speaker}.wav</a></div>`,
+                `<div class="speaker"><small class="mono">${file.speaker}</small><canvas class="waveform" id="wave-${file.speaker}" aria-label="${file.speaker} waveform"></canvas><audio controls src="${file.url}"></audio><a class="download" href="${file.url}">Download ${file.speaker}.wav</a></div>`,
             )
             .join("");
+          sep.speaker_files.forEach((file, index) =>
+            drawWaveform(
+              file.waveform_url,
+              $("wave-" + file.speaker),
+              waveColors[index % waveColors.length],
+            ),
+          );
           maxStage = 3;
           progress(100, "Pipeline complete");
           go(3);
@@ -810,6 +942,7 @@
         progress(0, "Waiting for audio");
         message("status", "Choose another recording.");
       });
+      go(0);
     </script>
   </body>
 </html>
