@@ -479,10 +479,23 @@
         background: #f3efe7;
         padding: 12px;
       }
-      .transcript-row:nth-child(2n) { border-color: var(--coral); }
-      .transcript-row .speaker-name { font: 500 11px "DM Mono", monospace; }
-      .transcript-row .time { color: var(--muted); font: 500 11px "DM Mono", monospace; }
-      .transcript-row .text { line-height: 1.5; }
+      .transcript-row:nth-child(2n) {
+        border-color: var(--coral);
+      }
+      .transcript-row .speaker-name {
+        font:
+          500 11px "DM Mono",
+          monospace;
+      }
+      .transcript-row .time {
+        color: var(--muted);
+        font:
+          500 11px "DM Mono",
+          monospace;
+      }
+      .transcript-row .text {
+        line-height: 1.5;
+      }
       .source-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -696,11 +709,14 @@
                 <div class="kicker">Stage 05 / Sarvam speech-to-text</div>
                 <h2>Give the voices their words.</h2>
                 <p class="lede">
-                  Sarvam AI transcribes each speaker track independently, keeping
-                  the speaker label and word timestamps attached to the result.
+                  Sarvam AI transcribes each speaker track independently,
+                  keeping the speaker label and word timestamps attached to the
+                  result.
                 </p>
                 <div class="loader"></div>
-                <div class="status" id="asrStatus">Waiting for speaker tracks…</div>
+                <div class="status" id="asrStatus">
+                  Waiting for speaker tracks…
+                </div>
               </div>
               <div class="visual">
                 <div>
@@ -708,9 +724,14 @@
                   <div class="metric-row">
                     <div class="metric"><b>Sarvam</b><span>backend</span></div>
                     <div class="metric"><b>v4</b><span>Saaras model</span></div>
-                    <div class="metric"><b id="segmentCount">--</b><span>segments</span></div>
+                    <div class="metric">
+                      <b id="segmentCount">--</b><span>segments</span>
+                    </div>
                   </div>
-                  <p class="lede">Your <span class="mono">SARVAM_API_KEY</span> stays server-side.</p>
+                  <p class="lede">
+                    Your <span class="mono">SARVAM_API_KEY</span> stays
+                    server-side.
+                  </p>
                 </div>
               </div>
             </div>
@@ -879,7 +900,10 @@
       }
       function transcript(data) {
         const rows = data.segments
-          .map((segment) => `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s — ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`)
+          .map(
+            (segment) =>
+              `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s — ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`,
+          )
           .join("");
         return `<div class="transcript-list">${rows || '<div class="skip">Sarvam returned no transcript segments.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
