@@ -1,0 +1,28 @@
+{
+  "summary": "A speaker enumerates several Indian states, followed by a brief statement concerning food supplies.",
+  "tags": [
+    "Indian States",
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Food Supplies"
+  ],
+  "dialogue": [
+    {
+      "start": 0.0,
+      "end": 4.774,
+      "speaker": "SPEAKER_01",
+      "text": "आंध्र प्रदेश, अरुणाचल प्रदेश, छत्तीसगढ़, असम, बिहार है",
+      "lang": "hi"
+    },
+    {
+      "start": 3.972,
+      "end": 8.224,
+      "speaker": "SPEAKER_00",
+      "text": "कन भी हो हकड़ो हिहूर खाद्य सामग्री दिखुआ",
+      "lang": "hi"
+    }
+  ]
+}

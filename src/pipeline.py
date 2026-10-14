@@ -19,12 +19,12 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from .asr import ASRStub, SarvamASR
+from .asr import make_asr
 from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
 from .diarization.linking import link_speakers
 from .diarization.rttm import write_rttm
-from .postprocessing import PostProcessorStub
+from .postprocessing import make_postprocessor
 from .preprocessing import Preprocessor, chunk_audio
 from .preprocessing.preprocess import spectral_denoise
 from .separation import Separator
@@ -193,7 +193,7 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
     diar.load()
     sep = Separator(cfg.separation)
     sep.load()
-    asr = SarvamASR(cfg.asr) if str(cfg.asr.backend) == "sarvam" else ASRStub(cfg.asr)
+    asr = make_asr(cfg.asr)
     asr.load()
 
     if len(chunks) == 1:
@@ -232,7 +232,7 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
             separated_audio_paths.append(str(source_path))
 
     # --- Stage 5: LLM post-processing (stub pre-midsem)
-    post = PostProcessorStub(cfg.postprocessing)
+    post = make_postprocessor(cfg.postprocessing)
     with measure(post.name, post.version, stages) as notes:
         post.load()
         report = post.run(transcript, notes)

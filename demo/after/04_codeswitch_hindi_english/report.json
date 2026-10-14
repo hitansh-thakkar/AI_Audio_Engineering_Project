@@ -1,0 +1,31 @@
+{
+  "summary": "A brief fragmented exchange where a speaker mentions needing an amount, accompanied by short unclear remarks.",
+  "tags": [
+    "Hindi",
+    "conversation",
+    "short exchange"
+  ],
+  "dialogue": [
+    {
+      "start": 0.0,
+      "end": 0.992,
+      "speaker": "SPEAKER_00",
+      "text": "जितना चाहिए",
+      "lang": "hi"
+    },
+    {
+      "start": 2.144,
+      "end": 4.384,
+      "speaker": "SPEAKER_01",
+      "text": "ूठी एंशॉर बजो",
+      "lang": "hi"
+    },
+    {
+      "start": 3.264,
+      "end": 4.0,
+      "speaker": "SPEAKER_02",
+      "text": "नई हिम्मा",
+      "lang": "hi"
+    }
+  ]
+}

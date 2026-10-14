@@ -11,7 +11,7 @@ run:
 preprocessing:
   target_sample_rate: 16000
   mono: true
-  highpass_hz: 0          # 0 = off; e.g. 70 removes mobile-mic rumble / mains hum
+  highpass_hz: 0          # keep 0: a high-pass on the diarization path distorts ECAPA embeddings -> speaker over-count (measured). Rumble is handled by denoise_output on the final tracks.
   denoise: none           # none | spectral — on the DIARIZATION path (distorts embeddings; prefer denoise_output)
   denoise_output: none    # none | spectral — denoise only the final per-speaker tracks (safe; market-noise case)
   normalize: peak         # peak | lufs | none
@@ -25,9 +25,11 @@ diarization:
   backend: community1     # community1 (free, local) | legacy31 (free, local) | precision2 (OPTIONAL PAID API)
   model: pyannote/speaker-diarization-community-1
   clustering: spectral    # REQUIRED (proposal M2): spectral | gmm = hand-applied clustering of embeddings | builtin = pyannote end-to-end
+  count_method: silhouette  # estimate #speakers when unknown: silhouette (robust; best balance — overlap-set count acc 0.75) | eigengap (edges sequential but over-counts short overlap clips)
+  affinity: refined       # spectral affinity graph: refined (pruned+symmetrised kNN, best) | cosine (raw, legacy)
   overlap_detector: none  # none | pyannote (gated-but-free model → overlap regions for separation; needs HF_TOKEN + accepted licence)
   emit_timeline_json: true  # REQUIRED M2 deliverable: time->speaker timeline JSON alongside the RTTM
-  embedding: auto         # auto/mfcc = MFCC-stats (offline) | ecapa = SpeechBrain ECAPA (better)
+  embedding: ecapa        # ecapa = SpeechBrain ECAPA (best; measured DER median ~0.10 vs 0.34 for mfcc) | auto/mfcc = offline fallback
   vad_top_db: 30          # energy-VAD silence threshold (dB below peak)
   window_seconds: 1.5     # embedding window length over VAD regions
   window_hop: 0.75        # embedding window hop
@@ -46,17 +48,17 @@ separation:
                           # solo context to anchor each voice (bare-overlap slices separate poorly)
 
 asr:
-  backend: faster_whisper # faster_whisper (local, default) | indicconformer (optional, heavy NeMo)
-  model: large-v3
+  backend: faster_whisper # open/multilingual default so a cold run needs no gate | indicwav2vec = proposal's localized Indic ASR (gated-but-free, used by live.yaml) | indicconformer (NeMo, gated) | sarvam (PAID)
+  model: small            # CPU-friendly multilingual default; use medium/large-v3 for quality, or backend=indicwav2vec (model ai4bharat/indicwav2vec-hindi) for native-script Indic
+  language: auto          # auto-detect per speaker track | force an ISO code (hi, en, bn, ...). faster-whisper handles code-switch in detected mode
   device: cpu
-  compute_type: int8
-  align: true
-  align_backend: whisperx
-  normalizer: indic_script_safe   # NFC + indic-nlp-library
+  compute_type: int8      # int8 = small RAM/VRAM; use float16 on GPU for quality
+  align: true             # faster-whisper emits native word timestamps (no separate WhisperX needed)
+  normalizer: indic_script_safe   # NFC + indic-nlp-library (never Whisper's default) for WER/CER
 
 postprocessing:
   backend: gemini         # gemini (free API, default) | ollama (OPTIONAL local) | api (OPTIONAL PAID)
-  model: gemini-2.5-flash
+  model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434   # used only by the optional ollama backend
   structured_output: true

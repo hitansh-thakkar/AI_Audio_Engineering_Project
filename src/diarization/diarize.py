@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from ..types import AudioClip, DiarizationResult, SpeakerTurn
 from .clustering import cluster_embeddings
 from .embeddings import embed_segments
@@ -66,13 +68,14 @@ class Diarizer:
                 turns=[SpeakerTurn(0.0, end, "SPEAKER_00")], overlap_regions=[], num_speakers=1,
             )
 
+        # Detect simultaneous-speech regions FIRST (when the detector is enabled) so that
+        # overlap-contaminated windows — which blend two voices — do not form a phantom third
+        # speaker. Attribution still comes from the compulsory hand-applied clustering below.
+        detector = OverlapDetector(self.cfg, self.run_cfg)
+        overlap_regions = detector.detect(clip, notes) if detector.enabled else []
+
         emb = embed_segments(clip.samples, sr, segments, str(self.cfg.embedding), notes)
-        labels = cluster_embeddings(
-            emb, method=str(self.cfg.clustering),
-            num_speakers=self.cfg.num_speakers,
-            min_speakers=self.cfg.min_speakers, max_speakers=self.cfg.max_speakers,
-            seed=int(self.run_cfg.seed), notes=notes,
-        )
+        labels, num = self._cluster(emb, segments, overlap_regions, notes)
 
         # segment -> labelled turn, then merge adjacent same-speaker (gap < 0.5s)
         raw = [SpeakerTurn(s, e, f"SPEAKER_{labels[i]:02d}") for i, (s, e) in enumerate(segments)]
@@ -84,13 +87,6 @@ class Diarizer:
             else:
                 merged.append(t)
 
-        num = len(set(labels.tolist()))
-
-        # Speaker attribution above is from the compulsory hand-applied clustering. Overlap
-        # regions (simultaneous speech) come from the pyannote detector when enabled; otherwise
-        # they are inferred from overlapping diarized turns (fast, no gated model).
-        detector = OverlapDetector(self.cfg, self.run_cfg)
-        overlap_regions = detector.detect(clip, notes) if detector.enabled else []
         if not overlap_regions:
             overlap_regions = compute_overlaps(merged)
             if overlap_regions:
@@ -98,3 +94,48 @@ class Diarizer:
             else:
                 notes.append("no overlapping speech detected")
         return DiarizationResult(turns=merged, overlap_regions=overlap_regions, num_speakers=num)
+
+    def _cluster(self, emb, segments, overlap_regions, notes):
+        """Hand-applied Spectral/GMM clustering. When overlap regions are known, the speaker
+        COUNT is taken from the clean (single-speaker) windows only; overlap windows are then
+        attached to the nearest speaker centroid so they get a label without inflating the count."""
+        kwargs = dict(
+            method=str(self.cfg.clustering), num_speakers=self.cfg.num_speakers,
+            min_speakers=self.cfg.min_speakers, max_speakers=self.cfg.max_speakers,
+            seed=int(self.run_cfg.seed),
+            count_method=str(getattr(self.cfg, "count_method", "silhouette")),
+            affinity=str(getattr(self.cfg, "affinity", "cosine")),
+        )
+
+        def _in_overlap(seg: tuple[float, float]) -> bool:
+            # a window is contaminated if it intersects any overlap region at all (the blended
+            # span is usually wider than the detector's flagged slice, so midpoint is too strict)
+            return any(seg[0] < o1 and seg[1] > o0 for o0, o1 in overlap_regions)
+
+        clean_idx = [i for i, s in enumerate(segments) if not _in_overlap(s)]
+        if not overlap_regions or len(clean_idx) < 2 or len(clean_idx) == len(segments):
+            labels = cluster_embeddings(emb, notes=notes, **kwargs)
+            return labels, len(set(labels.tolist()))
+
+        clean_labels = cluster_embeddings(emb[clean_idx], notes=notes, **kwargs)
+        num = len(set(clean_labels.tolist()))
+        labels = np.zeros(len(segments), dtype=int)
+        for j, i in enumerate(clean_idx):
+            labels[i] = int(clean_labels[j])
+
+        centroids = {}
+        for c in set(clean_labels.tolist()):
+            v = emb[clean_idx][clean_labels == c].mean(axis=0)
+            nrm = float(np.linalg.norm(v))
+            centroids[c] = v / nrm if nrm > 0 else v
+        clean_set = set(clean_idx)
+        for i in range(len(segments)):
+            if i in clean_set:
+                continue
+            v = emb[i]
+            nrm = float(np.linalg.norm(v))
+            vv = v / nrm if nrm > 0 else v
+            labels[i] = max(centroids, key=lambda c: float(vv @ centroids[c]))
+        notes.append(f"excluded {len(segments) - len(clean_idx)} overlap-region window(s) from "
+                     f"speaker counting -> {num} speaker(s)")
+        return labels, num

@@ -1,8 +1,20 @@
 """The UI service layer must transcode uploads, run the pipeline, and shape per-speaker
 results the way the Streamlit app expects."""
 import soundfile as sf
+from omegaconf import OmegaConf
 
+from src.config import load_config
 from src.ui.service import envelope, run_on_file, speaker_color, transcode_to_wav
+
+
+def _stub_asr_config(tmp_path):
+    """Default config with the ASR stub so the UI test stays fast + offline."""
+    cfg = load_config("config/default.yaml")
+    cfg.asr.backend = "stub"
+    cfg.postprocessing.backend = "stub"
+    path = tmp_path / "ui_stub.yaml"
+    OmegaConf.save(cfg, path)
+    return str(path)
 
 
 def test_transcode_produces_16k_mono_wav(sequential_clip, tmp_path):
@@ -25,7 +37,7 @@ def test_speaker_colors_are_stable_and_distinct():
 
 
 def test_run_on_file_returns_per_speaker_results(sequential_clip, tmp_path):
-    result = run_on_file(sequential_clip, "config/default.yaml", tmp_path)
+    result = run_on_file(sequential_clip, _stub_asr_config(tmp_path), tmp_path)
     assert result.num_speakers >= 1
     assert len(result.speakers) == result.num_speakers
     for spk in result.speakers:

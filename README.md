@@ -4,7 +4,7 @@ A multi-stage audio-processing pipeline that takes **chaotic, multi-speaker, cod
 
 This is a **systems-engineering + measurement** project, not a model-training project. It chains pretrained specialists — speech separation, speaker diarization, code-switched ASR, LLM post-processing — and, critically, **measures how errors propagate** from the acoustic front-end to the final text.
 
-> **Status: mid-project.** The full pipeline runs end-to-end today. The acoustic front-end (preprocessing, diarization with hand-rolled clustering, separation) is implemented with real algorithms + metrics; ASR and LLM post-processing are structurally-valid **stubs** pending the second half. `ruff` + `mypy` clean, **31 tests pass**. Overlap separation produces clean per-speaker audio at a measured **median SI-SNRi +7.2 dB / SDRi +8.6 dB** on the `overlap_mixtures` benchmark (SepFormer, 24 mixtures).
+> **Status: all five stages implemented.** The full pipeline runs end-to-end with real models at every stage: preprocessing, diarization (hand-applied spectral/GMM clustering over ECAPA embeddings, eigengap speaker counting, refined affinity), overlap separation, **ASR (faster-whisper, local/free)**, and **LLM post-processing (Google Gemini, free tier; local Ollama optional)**. `ruff` + `mypy` clean, **53 tests pass**. Measured on the committed `dhvani_eval` slices: diarization **DER median ~0.10 / speaker-count accuracy 0.80** (sequential, ECAPA; overlap-set count accuracy 0.75); overlap separation **SI-SNRi median +7.2 dB / SDRi median +4.5 dB** (SepFormer, 24 mixtures). See `FACT_CHECK.md` for the full measured-vs-claimed audit.
 
 ---
 
@@ -26,10 +26,13 @@ raw multi-speaker audio (.wav)
                         clean full-length per-speaker tracks
         │
         ▼
- [4] ASR + Alignment    faster-whisper / Tara → word-timestamped text         [stub — post-midsem]
-        │
+ [4] ASR                 IndicWav2Vec (AI4Bharat, native script) per speaker   [implemented]
+                        — the proposal's localized Indic ASR (live.yaml).
+        │                 faster-whisper = multilingual + word timestamps (default.yaml);
+        │                 IndicConformer (NeMo, gated) / Sarvam (PAID) optional
         ▼
- [5] LLM Post-Process   Google Gemini API (free tier) → clean, summarize      [stub — post-midsem]
+ [5] LLM Post-Process   Google Gemini (free tier) → summary + tags + cleaned  [implemented]
+                        speaker dialogue, with a no-new-facts guardrail
         │
         ▼
  structured report: executive summary + keyword tags + speaker-separated dialogue
@@ -127,10 +130,10 @@ AI_Audio_Engineering_Project/
 │   ├── preprocessing/           ← resample / normalize / trim
 │   ├── diarization/             ← VAD, embeddings, Spectral/GMM clustering, RTTM, timeline JSON
 │   ├── separation/              ← context-window separation + speaker attribution + per-speaker stitching
-│   ├── asr/                     ← ASR stub (post-midsem: faster-whisper / Tara + WhisperX)
-│   ├── postprocessing/          ← LLM stub (post-midsem: Gemini report + guardrail)
+│   ├── asr/                     ← faster-whisper (default) + IndicConformer / Sarvam backends via factory
+│   ├── postprocessing/          ← Gemini (default) + Ollama backends, report + no-new-facts guardrail
 │   └── evaluation/              ← DER, SI-SNRi/SDRi, WER/CER, script-safe normalizer
-├── tests/                       ← 31 tests (unit + end-to-end smoke + overlap-separation e2e)
+├── tests/                       ← 53 tests (unit + end-to-end smoke + overlap-separation e2e)
 ├── dhvani_eval/                 ← curated eval dataset + reproducible build/fetch scripts
 ├── indic_multispeaker_10/       ← raw source clips (IndicVoices-derived)
 └── outputs/                     ← per-run reports + manifests (gitignored)
@@ -158,7 +161,7 @@ AI_Audio_Engineering_Project/
 1. **Pipeline source code** — unified, documented, raw audio → final report (`src/`).
 2. **System benchmark notebook** — per-module latency + memory, plus the ablation study (post-midsem; instrumentation already in the `RunManifest`).
 
-Per-milestone required outputs: **M1 isolated per-speaker audio** ✅ (overlap-separated `speakers/*.wav`, SI-SNRi +7.2 dB) · M2 **timeline JSON** via self-implemented **Spectral Clustering / GMM** ✅ · M3 timestamped speaker-delineated transcript (post-midsem) · M4 report (summary + keyword tags + speaker-separated dialogue, post-midsem).
+Per-milestone required outputs: **M1 isolated per-speaker audio** ✅ (overlap-separated `speakers/*.wav`, SI-SNRi +7.2 dB) · M2 **timeline JSON** via self-implemented **Spectral Clustering / GMM** ✅ · **M3 timestamped speaker-delineated transcript** ✅ (faster-whisper, per-speaker, word timestamps) · **M4 report** ✅ (Gemini: executive summary + keyword tags + speaker-separated dialogue, with a no-new-facts guardrail).
 
 See [`PLAN.md`](PLAN.md) for the phased plan and [`CLAUDE.md`](CLAUDE.md) for the engineering rules (incl. proposal-compulsory items).
 

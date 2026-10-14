@@ -13,7 +13,7 @@ run:
 preprocessing:
   target_sample_rate: 16000
   mono: true
-  highpass_hz: 70 # mobile-mic rumble / mains hum (proposal's real-world audio)
+  highpass_hz: 0 # OFF: a high-pass on the diarization path distorts ECAPA embeddings and over-counts speakers (measured clip_01 3->6, any filter order). denoise_output cleans the final tracks instead.
   denoise: none # keep OFF on the diarization path (distorts ECAPA embeddings -> speaker over-count)
   denoise_output: spectral # clean the final per-speaker tracks instead (market/village noise)
   normalize: lufs # consistent loudness across recordings
@@ -27,7 +27,9 @@ diarization:
   backend: community1
   model: pyannote/speaker-diarization-community-1
   clustering: spectral # compulsory hand-applied clustering owns speaker attribution
-  overlap_detector: none # overlaps inferred from diarized turns (fast); pyannote = slower, gated, more accurate
+  count_method: silhouette # robust speaker counting (best overlap-set accuracy); eigengap over-counts short overlap clips
+  affinity: refined # pruned+symmetrised kNN affinity so the cut lands on the speaker boundary, not a time boundary
+  overlap_detector: pyannote # REAL uploads need true simultaneous-speech detection (hand clustering yields non-overlapping turns); community-1, gated-but-free HF_TOKEN, degrades to inferred if unavailable
   emit_timeline_json: true
   embedding: ecapa # SpeechBrain ECAPA speaker embeddings (open) -> far better clustering
   vad_top_db: 30
@@ -47,17 +49,18 @@ separation:
   context_seconds: 3.0
 
 asr:
-  backend: sarvam
-  model: saaras:v4
+  backend: indicwav2vec   # proposal's localized Indic ASR (IndicWav2Vec, native script); gated-but-free on HF (HF_TOKEN + accepted licence, like pyannote)
+  model: ai4bharat/indicwav2vec-hindi   # per-language native-script CTC; swap for another-language IndicWav2Vec
+  language: hi            # IndicWav2Vec is per-language; for English/mixed content use backend=faster_whisper, language=auto
   device: cpu
   compute_type: int8
-  align: true
-  align_backend: whisperx
+  align: false            # wav2vec2 CTC = segment-level text (no word timestamps); faster_whisper gives word timestamps
   normalizer: indic_script_safe
+  # Alternatives: backend=faster_whisper (multilingual, word timestamps, no gate) | indicconformer (multilingual Indic, NeMo, gated) | sarvam (PAID)
 
 postprocessing:
   backend: gemini
-  model: gemini-2.5-flash
+  model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434
   structured_output: true

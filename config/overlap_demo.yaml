@@ -41,17 +41,17 @@ separation:
   context_seconds: 3.0
 
 asr:
-  backend: faster_whisper
-  model: large-v3
+  backend: stub           # this demo showcases overlap SEPARATION (M1); stub keeps it fast/offline. Set faster_whisper to also transcribe.
+  model: small
+  language: auto
   device: cpu
   compute_type: int8
   align: true
-  align_backend: whisperx
   normalizer: indic_script_safe
 
 postprocessing:
-  backend: gemini
-  model: gemini-2.5-flash
+  backend: stub           # demo focuses on separation; stub avoids a live LLM call
+  model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434
   structured_output: true

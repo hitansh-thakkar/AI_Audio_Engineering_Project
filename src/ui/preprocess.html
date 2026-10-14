@@ -181,11 +181,11 @@
       }
       .slides {
         display: flex;
-        width: 500%;
+        width: 600%;
         transition: transform 0.65s cubic-bezier(0.22, 0.8, 0.25, 1);
       }
       .slide {
-        width: 20%;
+        width: calc(100% / 6);
         min-height: 450px;
         padding: 34px;
       }
@@ -706,12 +706,12 @@
           <article class="slide">
             <div class="slide-grid">
               <div>
-                <div class="kicker">Stage 05 / Sarvam speech-to-text</div>
+                <div class="kicker">Stage 05 / speech-to-text</div>
                 <h2>Give the voices their words.</h2>
                 <p class="lede">
-                  Sarvam AI transcribes each speaker track independently,
-                  keeping the speaker label and word timestamps attached to the
-                  result.
+                  faster-whisper transcribes each speaker track independently —
+                  local and free — keeping the speaker label and word timestamps
+                  attached, and auto-detecting code-switched language.
                 </p>
                 <div class="loader"></div>
                 <div class="status" id="asrStatus">
@@ -722,20 +722,63 @@
                 <div>
                   <div class="kicker">Transcript engine</div>
                   <div class="metric-row">
-                    <div class="metric"><b>Sarvam</b><span>backend</span></div>
-                    <div class="metric"><b>v4</b><span>Saaras model</span></div>
+                    <div class="metric">
+                      <b>whisper</b><span>local backend</span>
+                    </div>
+                    <div class="metric">
+                      <b>words</b><span>timestamps</span>
+                    </div>
                     <div class="metric">
                       <b id="segmentCount">--</b><span>segments</span>
                     </div>
                   </div>
                   <p class="lede">
-                    Your <span class="mono">SARVAM_API_KEY</span> stays
-                    server-side.
+                    Runs on-device; the model is set in
+                    <span class="mono">config/live.yaml</span>.
                   </p>
                 </div>
               </div>
             </div>
             <div id="asrResult"></div>
+          </article>
+          <article class="slide">
+            <div class="slide-grid">
+              <div>
+                <div class="kicker">Stage 06 / structured report</div>
+                <h2>Read the story.</h2>
+                <p class="lede">
+                  Google Gemini turns the fragmented, code-switched transcript
+                  into an executive summary, keyword tags, and a cleaned
+                  speaker-separated dialogue — constrained to introduce no facts
+                  that are not in the transcript.
+                </p>
+                <div class="loader"></div>
+                <div class="status" id="llmStatus">
+                  Waiting for the transcript…
+                </div>
+                <div class="button-row">
+                  <button class="secondary" id="reset2">
+                    Process another file
+                  </button>
+                </div>
+              </div>
+              <div class="visual">
+                <div>
+                  <div class="kicker">Report engine</div>
+                  <div class="metric-row">
+                    <div class="metric"><b>Gemini</b><span>LLM backend</span></div>
+                    <div class="metric">
+                      <b id="tagCount">--</b><span>keyword tags</span>
+                    </div>
+                  </div>
+                  <p class="lede">
+                    No-new-facts guardrail; falls back to a minimal report if the
+                    LLM is unavailable.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div id="llmResult"></div>
           </article>
         </div>
         <button
@@ -775,6 +818,10 @@
             ><input type="radio" name="stage" value="4" /><span></span
             >ASR</label
           >
+          <label class="carousel-dot"
+            ><input type="radio" name="stage" value="5" /><span></span
+            >Report</label
+          >
         </div>
       </section>
     </main>
@@ -801,7 +848,8 @@
       }
       function go(index) {
         currentStage = index;
-        slides.style.transform = `translateX(-${index * 20}%)`;
+        const step = 100 / dots.length;   // one slide width (robust to #stages)
+        slides.style.transform = `translateX(-${index * step}%)`;
         dots.forEach((dot, i) => (dot.checked = i === index));
         dotLabels.forEach((label, i) =>
           label.classList.toggle("available", i <= maxStage),
@@ -905,7 +953,19 @@
               `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s — ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`,
           )
           .join("");
-        return `<div class="transcript-list">${rows || '<div class="skip">Sarvam returned no transcript segments.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+        return `<div class="transcript-list">${rows || '<div class="skip">No transcript segments were produced.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+      }
+      function report(data) {
+        const tags = (data.tags || [])
+          .map((tag) => `<span class="overlap">${escape(String(tag))}</span>`)
+          .join(" ");
+        const dialogue = (data.dialogue || [])
+          .map(
+            (segment) =>
+              `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="text">${escape(segment.text || "")}</div></div>`,
+          )
+          .join("");
+        return `<div class="stage-output"><div class="mono">Executive summary</div><p class="lede">${escape(data.summary || "")}</p>${tags ? `<div class="mono">Keyword tags</div><div>${tags}</div>` : ""}<div class="mono">Cleaned dialogue</div><div class="transcript-list">${dialogue || '<div class="skip">No dialogue produced.</div>'}</div></div><details><summary>Open report JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
       function escape(value) {
         return value.replace(
@@ -995,29 +1055,44 @@
             ),
           );
           maxStage = 3;
-          progress(80, "Speaker tracks complete");
+          progress(72, "Speaker tracks complete");
           go(4);
-          message("asrStatus", "Sending speaker tracks to Sarvam AI…");
+          message(
+            "asrStatus",
+            "Transcribing each speaker track with faster-whisper…",
+          );
           const asr = await post("/api/asr", { job_id: job });
           $("segmentCount").textContent = asr.segments.length;
           $("asrResult").innerHTML = transcript(asr);
           message(
             "asrStatus",
-            asr.notes.length ? asr.notes.join(" ") : "Sarvam transcript ready.",
+            asr.notes.length ? asr.notes.join(" ") : "Transcript ready.",
           );
           maxStage = 4;
-          progress(100, "Pipeline complete");
+          progress(86, "Transcript complete");
           go(4);
+          message("llmStatus", "Summarizing and structuring with Gemini…");
+          const rep = await post("/api/llm", { job_id: job });
+          $("tagCount").textContent = (rep.tags || []).length;
+          $("llmResult").innerHTML = report(rep);
+          message(
+            "llmStatus",
+            rep.notes.length ? rep.notes.join(" ") : "Report ready.",
+          );
+          maxStage = 5;
+          progress(100, "Pipeline complete");
+          go(5);
         } catch (error) {
           message("status", error.message, true);
           message("diarStatus", "The journey stopped here.", true);
           message("sepStatus", "Waiting for the previous stage.", true);
           message("asrStatus", "Waiting for speaker tracks.", true);
+          message("llmStatus", "Waiting for the transcript.", true);
           progress(0, "Pipeline stopped");
           $("start").disabled = false;
         }
       });
-      $("reset").addEventListener("click", () => {
+      function resetJourney() {
         selected = null;
         job = null;
         maxStage = 0;
@@ -1028,12 +1103,16 @@
         $("sepResult").innerHTML = "";
         $("speakers").innerHTML = "";
         $("asrResult").innerHTML = "";
+        $("llmResult").innerHTML = "";
         $("segmentCount").textContent = "--";
+        $("tagCount").textContent = "--";
         $("start").disabled = true;
         go(0);
         progress(0, "Waiting for audio");
         message("status", "Choose another recording.");
-      });
+      }
+      $("reset").addEventListener("click", resetJourney);
+      $("reset2").addEventListener("click", resetJourney);
       go(0);
     </script>
   </body>

@@ -1,0 +1,23 @@
+[
+  {
+    "start": "00:00",
+    "end": "00:05",
+    "start_s": 0.0,
+    "end_s": 4.64,
+    "speaker": "SPEAKER_02"
+  },
+  {
+    "start": "00:05",
+    "end": "00:08",
+    "start_s": 5.12,
+    "end_s": 8.256,
+    "speaker": "SPEAKER_00"
+  },
+  {
+    "start": "00:09",
+    "end": "00:14",
+    "start_s": 8.704,
+    "end_s": 14.46,
+    "speaker": "SPEAKER_01"
+  }
+]

@@ -28,11 +28,11 @@ Raw Audio (.wav)
 [3] Separation        → SepFormer on overlapping regions only
       │                  outputs: per-speaker .wav files
       ▼
-[4] ASR + Alignment   → faster-whisper (large-v3) + WhisperX → word-timestamped text
-      │                  [stub — post-midsem]
+[4] ASR + Alignment   → faster-whisper (local, free) → word-timestamped text
+      │                  per speaker; code-switch aware   [implemented]
       ▼
-[5] LLM Post-Process  → Google Gemini 2.5 Flash → clean, summarize, tag
-      │                  [stub — post-midsem]
+[5] LLM Post-Process  → Google Gemini (free tier) → summary + tags + dialogue
+      │                  no-new-facts guardrail            [implemented]
       ▼
 report.json / report.md + manifest.json (latency, memory, config hash per stage)
 ```
@@ -88,7 +88,7 @@ This is the compulsory hand-rolled implementation the course requires.
 - Typed dataclass contracts between every stage (`src/types.py`)
 - Every model ID and behavioral toggle is in `config/default.yaml` — no hardcoded values
 - Graceful degradation: a failing stage logs a note and passes through rather than crashing
-- `ruff` + `mypy` clean; **17 tests pass** (unit + end-to-end smoke)
+- `ruff` + `mypy` clean; **53 tests pass** (unit + end-to-end smoke)
 
 ### Dataset — `dhvani_eval/` (224 wav files, ~46 MB)
 
@@ -111,26 +111,27 @@ Required corpora status:
 
 ---
 
-## What Is Left (Post-Midsem)
+## Recently Completed
 
-### ASR + Alignment
+### ASR + Alignment — implemented
 
-- Swap in **faster-whisper large-v3** + WhisperX word alignment
-- Handle code-switched and regional speech (the stub already has the right interface)
-- Measure per-register WER (English vs. code-switch vs. regional)
+- **faster-whisper** (CTranslate2, int8; local + free) behind the `asr` factory; native word
+  timestamps (no separate WhisperX needed); per-speaker, code-switch aware (language auto-detect).
+- Optional **IndicConformer** (native-script Indic) and **Sarvam** (PAID) backends, off the default path.
+- WER/CER use the Indic-script-safe normalizer, reportable per register.
 
-### LLM Post-Processing
+### LLM Post-Processing — implemented
 
-- Connect **Google Gemini 2.5 Flash** (free tier) via the existing stub interface
-- Prompt engineering: clean fragmented multilingual text, extract topics, normalize code-switching
-- Factual consistency guardrail (no new facts introduced by the LLM)
-- Output: executive summary + keyword tags + speaker-separated dialogue
+- **Google Gemini** (free tier) default via `google-genai`; optional fully-offline **Ollama**.
+- Produces executive summary + keyword tags + cleaned speaker-separated dialogue.
+- No-new-facts guardrail (system prompt) + a zero-weight numeric-fact grounding check.
 
-### Stronger backends for existing stages
+### Stronger diarization — implemented
 
-- Swap MFCC embeddings → **pyannote speaker embeddings** (expected significant DER drop)
-- Enable real SepFormer separation on overlap regions (weights are already downloaded)
-- Add denoising frontend (Demucs / DNS) toggle
+- Default embeddings moved MFCC → **ECAPA**; **eigengap** speaker counting + **refined affinity**
+  (DER median 0.34→0.08, speaker-count accuracy 0.2→0.8); fixed a dead pyannote overlap detector.
+
+## What Is Left
 
 ### Ablation study (the graded research payload)
 
@@ -153,9 +154,9 @@ Required corpora status:
 | SI-SNRi / SDRi metrics                   | ✅ Done        |
 | Per-run manifest (timing + memory)       | ✅ Done        |
 | Dataset (3 of 4 corpora)                 | ✅ Done        |
-| 17 tests passing, ruff + mypy clean      | ✅ Done        |
-| ASR (faster-whisper + WhisperX)          | ⏳ Post-midsem |
-| LLM post-processing (Gemini)             | ⏳ Post-midsem |
-| Pyannote embeddings upgrade              | ⏳ Post-midsem |
-| Ablation study                           | ⏳ Post-midsem |
-| Benchmark notebook                       | ⏳ Post-midsem |
+| 53 tests passing, ruff + mypy clean      | ✅ Done        |
+| ASR (faster-whisper, local/free)         | ✅ Done        |
+| LLM post-processing (Gemini + guardrail) | ✅ Done        |
+| ECAPA embeddings + eigengap counting     | ✅ Done        |
+| Ablation study                           | ⏳ Remaining   |
+| Benchmark notebook                       | ⏳ Remaining   |

@@ -1,0 +1,163 @@
+{
+  "git_sha": "9df31f468ff6641058927f89967c1af70eec3711",
+  "config_hash": "236af35c1b57",
+  "seeds": {
+    "python": 42,
+    "numpy": 42,
+    "torch": 42
+  },
+  "stages": [
+    {
+      "name": "preprocessing",
+      "version": "sr16000-lufs-denoise_none",
+      "wall_time_s": 0.0231,
+      "peak_mem_mb": 3.14,
+      "notes": []
+    },
+    {
+      "name": "diarization",
+      "version": "real-spectral-community1",
+      "wall_time_s": 3.2474,
+      "peak_mem_mb": 1.45,
+      "notes": [
+        "overlap detector ran; no overlapping speech found",
+        "no overlapping speech detected"
+      ]
+    },
+    {
+      "name": "separation",
+      "version": "overlap-sepformer",
+      "wall_time_s": 0.0001,
+      "peak_mem_mb": 0.0,
+      "notes": [
+        "separation.mode=overlap but no overlap regions; nothing to separate"
+      ]
+    },
+    {
+      "name": "asr",
+      "version": "indicwav2vec-ai4bharat/indicwav2vec-hindi",
+      "wall_time_s": 2.6813,
+      "peak_mem_mb": 2.16,
+      "notes": [
+        "IndicWav2Vec (ai4bharat/indicwav2vec-hindi) transcribed 3 speaker track(s)"
+      ]
+    },
+    {
+      "name": "postprocessing",
+      "version": "gemini-gemini-3.8-flash",
+      "wall_time_s": 37.8172,
+      "peak_mem_mb": 0.16,
+      "notes": [
+        "Gemini (gemini-3.8-flash) structured the report",
+        "factual-consistency 1.0"
+      ]
+    }
+  ],
+  "config_snapshot": {
+    "run": {
+      "seed": 42,
+      "device": "cpu",
+      "output_dir": "outputs/",
+      "save_intermediate": true,
+      "order": "diar_first"
+    },
+    "preprocessing": {
+      "target_sample_rate": 16000,
+      "mono": true,
+      "highpass_hz": 0,
+      "denoise": "none",
+      "denoise_output": "spectral",
+      "normalize": "lufs",
+      "target_lufs": -23.0,
+      "trim_silence": true,
+      "trim_top_db": 30,
+      "chunk_seconds": 120
+    },
+    "diarization": {
+      "source": "real",
+      "backend": "community1",
+      "model": "pyannote/speaker-diarization-community-1",
+      "clustering": "spectral",
+      "count_method": "silhouette",
+      "affinity": "refined",
+      "overlap_detector": "pyannote",
+      "emit_timeline_json": true,
+      "embedding": "ecapa",
+      "vad_top_db": 30,
+      "window_seconds": 1.5,
+      "window_hop": 0.75,
+      "num_speakers": null,
+      "min_speakers": null,
+      "max_speakers": null,
+      "rttm_dir": null
+    },
+    "separation": {
+      "mode": "overlap",
+      "backend": "sepformer",
+      "model": "speechbrain/sepformer-wsj02mix",
+      "model_sample_rate": 8000,
+      "max_speakers_supported": 2,
+      "context_seconds": 3.0
+    },
+    "asr": {
+      "backend": "indicwav2vec",
+      "model": "ai4bharat/indicwav2vec-hindi",
+      "language": "hi",
+      "device": "cpu",
+      "compute_type": "int8",
+      "align": false,
+      "normalizer": "indic_script_safe"
+    },
+    "postprocessing": {
+      "backend": "gemini",
+      "model": "gemini-3.8-flash",
+      "api_key_env": "GEMINI_API_KEY",
+      "host": "http://localhost:11434",
+      "structured_output": true,
+      "factual_consistency_check": true,
+      "forbid_new_facts": true
+    },
+    "evaluation": {
+      "metrics": {
+        "separation": [
+          "si_snri",
+          "sdri"
+        ],
+        "diarization": [
+          "der",
+          "jer",
+          "speaker_count_error"
+        ],
+        "asr": [
+          "wer",
+          "cer"
+        ],
+        "summary": [
+          "rouge_l",
+          "bertscore",
+          "factual_consistency"
+        ]
+      },
+      "measure_latency": true,
+      "measure_peak_memory": true
+    }
+  },
+  "artifacts": {
+    "processed_audio": "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\processed.wav",
+    "speaker_audio": [
+      "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\speakers\\SPEAKER_00.wav",
+      "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\speakers\\SPEAKER_01.wav",
+      "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\speakers\\SPEAKER_02.wav"
+    ],
+    "separated_audio": [],
+    "report_json": "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\report.json",
+    "report_md": "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\report.md",
+    "timeline_json": "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\timeline.json",
+    "rttm": "C:\\Users\\Hitansh\\Documents\\GitHub\\AI_Audio_Engineering_Project\\demo\\after\\04_codeswitch_hindi_english\\04_codeswitch_hindi_english.rttm",
+    "num_speakers": 3,
+    "overlap_regions": [],
+    "num_overlap_regions": 0,
+    "num_separated_sources": 0,
+    "num_transcript_segments": 3
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "summary": "[fallback] 2 turns across 2 speaker(s); LLM post-processing unavailable.",
+  "tags": [],
+  "dialogue": [
+    {
+      "start": 0.0,
+      "end": 2.25,
+      "speaker": "SPEAKER_01",
+      "text": "किहालसा या साधारण आमदो",
+      "lang": "hi"
+    },
+    {
+      "start": 1.5,
+      "end": 3.27,
+      "speaker": "SPEAKER_00",
+      "text": "साधारण आम द्वरा ट्राफेंस",
+      "lang": "hi"
+    }
+  ]
+}

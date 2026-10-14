@@ -7,8 +7,19 @@ from src.config import load_config
 from src.pipeline import run_pipeline
 
 
+def _stub_asr_config(tmp_path):
+    """Default config but with the ASR stub, so the smoke tests stay fast and fully offline
+    (the real faster-whisper default would download + run a model)."""
+    cfg = load_config("config/default.yaml")
+    cfg.asr.backend = "stub"
+    cfg.postprocessing.backend = "stub"   # no live Gemini call in tests
+    cfg_path = tmp_path / "smoke.yaml"
+    OmegaConf.save(cfg, cfg_path)
+    return str(cfg_path)
+
+
 def test_end_to_end_smoke(sequential_clip, tmp_path):
-    manifest = run_pipeline(str(sequential_clip), config="config/default.yaml", out=str(tmp_path))
+    manifest = run_pipeline(str(sequential_clip), config=_stub_asr_config(tmp_path), out=str(tmp_path))
 
     # all five stages timed
     names = [s.name for s in manifest.stages]
@@ -40,6 +51,8 @@ def test_chunking_triggers_end_to_end(sequential_clip, tmp_path):
     # force a tiny window so a ~14 s clip is processed as multiple chunks
     cfg = load_config("config/default.yaml")
     cfg.preprocessing.chunk_seconds = 5
+    cfg.asr.backend = "stub"          # keep the test fast + offline (no model download)
+    cfg.postprocessing.backend = "stub"
     cfg_path = tmp_path / "chunked.yaml"
     OmegaConf.save(cfg, cfg_path)
 

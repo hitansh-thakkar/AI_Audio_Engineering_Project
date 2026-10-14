@@ -1,0 +1,27 @@
+{
+  "summary": "[fallback] 3 turns across 3 speaker(s); LLM post-processing unavailable.",
+  "tags": [],
+  "dialogue": [
+    {
+      "start": 0.0,
+      "end": 4.64,
+      "speaker": "SPEAKER_02",
+      "text": "ोमनमोटे  डेलीवराी डियर में बे वूडबिसी फर लगिल",
+      "lang": "hi"
+    },
+    {
+      "start": 5.12,
+      "end": 8.256,
+      "speaker": "SPEAKER_00",
+      "text": "कूरु वर्धवन कोशिमवर्धुमान बाकुरा बीगुम हावड़ा",
+      "lang": "hi"
+    },
+    {
+      "start": 8.704,
+      "end": 14.46,
+      "speaker": "SPEAKER_01",
+      "text": "स्थानीय कला रूप या सेल्फ संगाबाद जिले के लिए एक",
+      "lang": "hi"
+    }
+  ]
+}

@@ -24,6 +24,7 @@ from src.ui.preprocess_service import (
     process_upload,
     run_asr,
     run_diarization,
+    run_llm,
     run_separation,
 )
 
@@ -77,7 +78,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "audio/wav")
-            self.send_header("Content-Disposition", f'attachment; filename="{path.parent.name}_preprocessed.wav"')
+            self.send_header(
+                "Content-Disposition",
+                f'attachment; filename="{path.parent.name}_preprocessed.wav"')
             self.send_header("Content-Length", str(path.stat().st_size))
             self.end_headers()
             self.wfile.write(path.read_bytes())
@@ -131,7 +134,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         route = urlparse(self.path).path
-        if route in {"/api/diarize", "/api/separate", "/api/asr"}:
+        if route in {"/api/diarize", "/api/separate", "/api/asr", "/api/llm"}:
             length = int(self.headers.get("Content-Length", "0"))
             try:
                 payload = json.loads(self.rfile.read(length))
@@ -140,8 +143,10 @@ class Handler(BaseHTTPRequestHandler):
                     result = run_diarization(job_id, OUTPUT_ROOT)
                 elif route == "/api/separate":
                     result = run_separation(job_id, OUTPUT_ROOT)
-                else:
+                elif route == "/api/asr":
                     result = run_asr(job_id, OUTPUT_ROOT)
+                else:
+                    result = run_llm(job_id, OUTPUT_ROOT)
                 self._json(HTTPStatus.OK, result)
             except Exception as exc:
                 self._json(HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -152,7 +157,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0 or length > MAX_UPLOAD_BYTES:
-            self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "Upload must be between 1 byte and 250 MB"})
+            self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                       {"error": "Upload must be between 1 byte and 250 MB"})
             return
         fields = _multipart_fields(self.headers.get("Content-Type", ""), self.rfile.read(length))
         upload = fields.get("audio")
@@ -174,7 +180,8 @@ class Handler(BaseHTTPRequestHandler):
             )
             self._json(HTTPStatus.OK, result)
         except Exception as exc:
-            self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": f"Could not process this file: {type(exc).__name__}: {exc}"})
+            self._json(HTTPStatus.UNPROCESSABLE_ENTITY,
+                       {"error": f"Could not process this file: {type(exc).__name__}: {exc}"})
         finally:
             source.unlink(missing_ok=True)
 

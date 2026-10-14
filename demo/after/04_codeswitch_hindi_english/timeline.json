@@ -1,0 +1,30 @@
+[
+  {
+    "start": "00:00",
+    "end": "00:01",
+    "start_s": 0.0,
+    "end_s": 0.992,
+    "speaker": "SPEAKER_00"
+  },
+  {
+    "start": "00:02",
+    "end": "00:03",
+    "start_s": 2.144,
+    "end_s": 3.008,
+    "speaker": "SPEAKER_01"
+  },
+  {
+    "start": "00:03",
+    "end": "00:04",
+    "start_s": 3.264,
+    "end_s": 4.0,
+    "speaker": "SPEAKER_02"
+  },
+  {
+    "start": "00:04",
+    "end": "00:04",
+    "start_s": 4.032,
+    "end_s": 4.384,
+    "speaker": "SPEAKER_01"
+  }
+]

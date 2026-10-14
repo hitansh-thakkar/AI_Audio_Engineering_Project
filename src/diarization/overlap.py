@@ -24,8 +24,14 @@ _ACCEPT_HINT = (
 
 
 def overlap_regions_from_annotation(annotation) -> list[tuple[float, float]]:
-    """Convert a pyannote diarization Annotation into merged (start, end) overlap regions."""
-    overlap = annotation.get_overlap()          # pyannote.core Timeline of simultaneous speech
+    """Convert a pyannote diarization result into merged (start, end) overlap regions.
+
+    pyannote.audio 4.0's community-1 pipeline returns a `DiarizeOutput` wrapper, not a raw
+    `Annotation`; the per-speaker timeline lives on `.speaker_diarization`. Unwrap it (and
+    tolerate a plain Annotation) before asking for the overlap timeline.
+    """
+    diar = getattr(annotation, "speaker_diarization", annotation)
+    overlap = diar.get_overlap()                # pyannote.core Timeline of simultaneous speech
     return [(round(seg.start, 3), round(seg.end, 3)) for seg in overlap]
 
 

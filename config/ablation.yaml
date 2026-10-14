@@ -1,0 +1,37 @@
+# Dhvani — ablation sweep spec (the error-propagation study / Deliverable 2).
+# Each cell overrides config/default.yaml; the runner measures intermediate + final metrics
+# per cell so we can attribute downstream error to each stage.
+#
+# Axes (the proposal's error-propagation question):
+#   diarization.source : real   -> our pipeline's own diarization (errors propagate)
+#                        oracle -> ground-truth RTTM (isolates downstream error)
+#   separation.mode    : none      -> no separation (overlaps stay mixed)
+#                        overlap   -> surgical: separate only diarized overlap regions (default)
+#                        everywhere-> blind separate the whole clip = the literal "separation
+#                                     front-end" baseline from the brief (expected to HURT on
+#                                     real audio; this is how we show separation-first is worse)
+#
+# `everywhere` is our runnable stand-in for the brief's separate->diarize order: it feeds blind
+# whole-clip separation into the rest of the pipeline, which is exactly the front-end the brief
+# prescribes. A literal run.order=sep_first remains an optional future variant.
+
+base: config/default.yaml
+
+sweep:
+  diarization.source: [real, oracle]
+  separation.mode: [none, overlap, everywhere]
+
+# Metrics collected per cell (traced back to each run's RunManifest):
+#   diarization: der, jer, speaker_count_error
+#   separation : si_snri, sdri   (on dhvani_eval/overlap_mixtures, which ship reference stems)
+#   asr        : wer, cer        (script-safe normalizer, per register)
+#   final      : wer, cer        (the money metric: final WER vs. pipeline configuration)
+metrics: [der, speaker_count_error, si_snri, sdri, wer, cer]
+
+datasets:
+  diarization: dhvani_eval/sequential        # RTTM refs
+  separation:  dhvani_eval/overlap_mixtures  # reference stems
+  asr:         dhvani_eval/registers         # english / code-switch registers
+
+# Oracle RTTM source for diarization.source=oracle cells:
+rttm_dir: dhvani_eval/sequential/rttm
