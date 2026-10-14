@@ -82,6 +82,25 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(path.read_bytes())
             return
+        if parsed.path == "/api/plot":
+            values = parse_qs(parsed.query)
+            job = values.get("job", [""])[0]
+            name = values.get("name", [""])[0]
+            if (not re.fullmatch(r"[0-9a-f]{32}", job)
+                    or not re.fullmatch(r"[A-Za-z0-9_.-]+\.png", name)):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid plot request"})
+                return
+            path = (OUTPUT_ROOT / job / "plots" / name).resolve()
+            if not path.is_file() or OUTPUT_ROOT.resolve() not in path.parents:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Plot not found"})
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(path.stat().st_size))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(path.read_bytes())
+            return
         if parsed.path == "/api/file":
             values = parse_qs(parsed.query)
             job = values.get("job", [""])[0]

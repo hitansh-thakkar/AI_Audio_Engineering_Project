@@ -512,6 +512,74 @@
         color: var(--muted);
         margin-bottom: 9px;
       }
+      /* ── embedding backend toggle ─────────────────────────────────────── */
+      .embed-toggle {
+        margin: 18px 0 16px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 14px 16px;
+        background: #fbfaf5;
+      }
+      .embed-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        cursor: pointer;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .embed-option:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .embed-option input[type="radio"] {
+        display: inline-block;
+        accent-color: var(--coral);
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+        margin-top: 3px;
+        cursor: pointer;
+      }
+      .embed-label strong {
+        display: block;
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+      }
+      .embed-label small {
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.4;
+      }
+      .embed-toggle.running {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      /* ── matplotlib plot panels ───────────────────────────────────────── */
+      .plot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+      }
+      .plot-card {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fbfaf5;
+      }
+      .plot-label {
+        padding: 7px 12px;
+        font-size: 0.72rem;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+        background: #f3efe7;
+      }
+      .plot-img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
       @media (max-width: 760px) {
         main {
           width: min(100% - 24px, 560px);
@@ -585,6 +653,23 @@
                   ></label
                 >
                 <div class="file-name mono" id="fileName">No file selected</div>
+                <div class="embed-toggle" id="embedToggle">
+                  <div class="kicker" style="margin-bottom:8px">Speaker embedding backend</div>
+                  <label class="embed-option">
+                    <input type="radio" name="embedding" value="ecapa" checked />
+                    <span class="embed-label">
+                      <strong>ECAPA-TDNN</strong>
+                      <small>SpeechBrain neural embeddings — higher accuracy, recommended</small>
+                    </span>
+                  </label>
+                  <label class="embed-option">
+                    <input type="radio" name="embedding" value="mfcc" />
+                    <span class="embed-label">
+                      <strong>MFCC statistics</strong>
+                      <small>Lightweight fallback — fully offline, no model file needed</small>
+                    </span>
+                  </label>
+                </div>
                 <div class="button-row">
                   <button id="start" disabled>Start the journey</button>
                 </div>
@@ -913,6 +998,24 @@
           (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[char],
         );
       }
+      /* ── plot image renderer ─────────────────────────────────────────── */
+      const PLOT_LABELS = {
+        energy_vad:          "Energy VAD — speech regions",
+        embedding_heatmap:   "Embedding similarity heatmap",
+        speaker_gantt:       "Speaker timeline (Gantt)",
+        separation_sources:  "Separated sources — amplitude envelopes",
+      };
+      function renderPlots(plots) {
+        if (!plots || !Object.keys(plots).length) return "";
+        const items = Object.entries(plots).map(([key, url]) => {
+          const label = PLOT_LABELS[key] || key;
+          return `<div class="plot-card">
+            <div class="plot-label mono">${label}</div>
+            <img class="plot-img" src="${url}" alt="${label}" loading="lazy" />
+          </div>`;
+        }).join("");
+        return `<div class="plot-grid">${items}</div>`;
+      }
       $("start").addEventListener("click", async () => {
         if (!selected) return;
         $("start").disabled = true;
@@ -941,8 +1044,13 @@
           go(1);
           progress(30, "Diarization running");
           message("diarStatus", "Mapping speakers and building the timeline…");
-          const diar = await post("/api/diarize", { job_id: job });
-          $("diarResult").innerHTML = timeline(diar);
+          const embedToggle = $("embedToggle");
+          const selectedEmbed = document.querySelector('input[name="embedding"]:checked');
+          const embeddingBackend = selectedEmbed ? selectedEmbed.value : "ecapa";
+          if (embedToggle) embedToggle.classList.add("running");
+          const diar = await post("/api/diarize", { job_id: job, embedding_backend: embeddingBackend });
+          if (embedToggle) embedToggle.classList.remove("running");
+          $("diarResult").innerHTML = timeline(diar) + renderPlots(diar.plots || {});
           message(
             "diarStatus",
             diar.notes.length ? diar.notes.join(" ") : "Timeline ready.",
@@ -966,7 +1074,7 @@
             sep.skipped ? "Separation skipped" : "Separation complete",
           );
           $("sepResult").innerHTML =
-            `${sep.separated_sources.length ? `<div class="source-grid">${sep.separated_sources.map((source, index) => `<div class="source-card"><small class="mono">SOURCE ${String(index + 1).padStart(2, "0")} · ${source.speaker}</small><div class="mono">${source.region.start_s.toFixed(2)}s — ${source.region.end_s.toFixed(2)}s</div><canvas class="waveform" id="sourceWave${index}" aria-label="Separated source waveform"></canvas><audio controls src="${source.url}"></audio><a class="download" href="${source.url}">Download source</a></div>`).join("")}</div><details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}`;
+            `${sep.separated_sources.length ? `<div class="source-grid">${sep.separated_sources.map((source, index) => `<div class="source-card"><small class="mono">SOURCE ${String(index + 1).padStart(2, "0")} · ${source.speaker}</small><div class="mono">${source.region.start_s.toFixed(2)}s — ${source.region.end_s.toFixed(2)}s</div><canvas class="waveform" id="sourceWave${index}" aria-label="Separated source waveform"></canvas><audio controls src="${source.url}"></audio><a class="download" href="${source.url}">Download source</a></div>`).join("")}</div><details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}${renderPlots(sep.plots || {})}`;
           sep.separated_sources.forEach((source, index) =>
             drawWaveform(
               source.waveform_url,

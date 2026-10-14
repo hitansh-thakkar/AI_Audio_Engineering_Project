@@ -12,11 +12,14 @@ from omegaconf import OmegaConf
 
 from ..config import load_config
 from ..diarization import Diarizer
+from ..diarization.embeddings import embed_segments
+from ..diarization.vad import energy_vad, window_segments
 from ..preprocessing import Preprocessor
 from ..separation import Separator
 from ..separation.stitch import build_speaker_tracks
 from ..asr.sarvam import SarvamASR
 from ..types import AudioClip, DiarizationResult, SeparatedSource, SpeakerTurn
+from .viz import energy_vad_chart, embedding_heatmap, speaker_gantt, separation_snr_chart
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -87,8 +90,18 @@ def _job_dir(job_id: str, output_root: str | Path) -> Path:
     return path
 
 
-def run_diarization(job_id: str, output_root: str | Path) -> dict[str, object]:
-    """Run Stage 2 on the conditioned clip and persist the timeline JSON."""
+def run_diarization(
+    job_id: str,
+    output_root: str | Path,
+    embedding_backend: str | None = None,
+) -> dict[str, object]:
+    """Run Stage 2 on the conditioned clip and persist the timeline JSON.
+
+    ``embedding_backend`` overrides cfg.diarization.embedding.  Accepted values:
+      ``"ecapa"``  – SpeechBrain ECAPA-TDNN (richer, recommended when the model is cached)
+      ``"mfcc"``   – MFCC statistics (lightweight, fully offline, no extra model files)
+    Omit (or pass ``None``) to keep whatever the config file specifies.
+    """
     job_dir = _job_dir(job_id, output_root)
     audio_path = job_dir / "processed.wav"
     samples, sample_rate = sf.read(str(audio_path), dtype="float32")
@@ -97,10 +110,65 @@ def run_diarization(job_id: str, output_root: str | Path) -> dict[str, object]:
     clip = AudioClip(samples=samples, sample_rate=sample_rate, source_path=str(audio_path))
 
     cfg = load_config(REPO_ROOT / "config" / "default.yaml")
+    if embedding_backend and embedding_backend in ("ecapa", "mfcc"):
+        cfg.diarization.embedding = embedding_backend
     notes: list[str] = []
     diarizer = Diarizer(cfg.diarization, cfg.run)
     diarizer.load()
     result = diarizer.run(clip, notes)
+
+    # ── matplotlib plots ────────────────────────────────────────────────────
+    plots_dir = job_dir / "plots"
+    plots_dir.mkdir(exist_ok=True)
+    plot_urls: dict[str, str] = {}
+
+    # 1. Energy VAD chart — re-run VAD (cheap, no model) so we have the raw regions
+    try:
+        top_db = int(getattr(cfg.diarization, "vad_top_db", 30))
+        vad_regions = energy_vad(samples, sample_rate, top_db=top_db)
+        vad_path = plots_dir / "energy_vad.png"
+        energy_vad_chart(samples, sample_rate, vad_regions, vad_path)
+        plot_urls["energy_vad"] = f"/api/plot?job={job_id}&name=energy_vad.png"
+    except Exception as exc:
+        notes.append(f"energy VAD chart skipped: {exc}")
+
+    # 2. Embedding similarity heatmap — re-extract embeddings (same path the Diarizer took)
+    try:
+        backend_str = str(cfg.diarization.embedding)
+        win = float(getattr(cfg.diarization, "window_seconds", 1.5))
+        hop = float(getattr(cfg.diarization, "window_hop", 0.75))
+        vad_regions_for_emb = energy_vad(samples, sample_rate, top_db=top_db)
+        segments = window_segments(vad_regions_for_emb, win=win, hop=hop)
+        if len(segments) >= 2:
+            embeddings = embed_segments(samples, sample_rate, segments,
+                                        backend=backend_str, notes=notes)
+            # build per-segment speaker labels from result turns
+            labels = np.zeros(len(segments), dtype=int)
+            for seg_idx, (seg_start, _) in enumerate(segments):
+                mid = seg_start + win / 2
+                for turn in result.turns:
+                    if turn.start <= mid <= turn.end:
+                        spk_num = int(turn.speaker.split("_")[-1])
+                        labels[seg_idx] = spk_num
+                        break
+            heatmap_path = plots_dir / "embedding_heatmap.png"
+            embedding_heatmap(embeddings, labels, heatmap_path)
+            plot_urls["embedding_heatmap"] = f"/api/plot?job={job_id}&name=embedding_heatmap.png"
+    except Exception as exc:
+        notes.append(f"embedding heatmap skipped: {exc}")
+
+    # 3. Speaker Gantt chart
+    try:
+        turns_for_gantt = result.to_timeline_json()
+        overlaps_for_gantt = [
+            {"start_s": s, "end_s": e} for s, e in result.overlap_regions
+        ]
+        gantt_path = plots_dir / "speaker_gantt.png"
+        speaker_gantt(turns_for_gantt, overlaps_for_gantt, clip.duration, gantt_path)
+        plot_urls["speaker_gantt"] = f"/api/plot?job={job_id}&name=speaker_gantt.png"
+    except Exception as exc:
+        notes.append(f"speaker gantt skipped: {exc}")
+
     payload = {
         "job_id": job_id,
         "duration_s": round(clip.duration, 2),
@@ -110,6 +178,7 @@ def run_diarization(job_id: str, output_root: str | Path) -> dict[str, object]:
             {"start_s": round(start, 3), "end_s": round(end, 3)}
             for start, end in result.overlap_regions
         ],
+        "plots": plot_urls,
         "notes": notes,
     }
     (job_dir / "timeline.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -181,6 +250,30 @@ def run_separation(job_id: str, output_root: str | Path) -> dict[str, object]:
         "speaker_files": speaker_files,
         "notes": notes,
     }
+
+    # ── matplotlib separation chart ─────────────────────────────────────────
+    plot_urls: dict[str, str] = {}
+    if separated:
+        try:
+            plots_dir = job_dir / "plots"
+            plots_dir.mkdir(exist_ok=True)
+            sources_for_viz = [
+                {"speaker": src.speaker, "samples": src.samples}
+                for src in separated
+            ]
+            snr_path = plots_dir / "separation_sources.png"
+            separation_snr_chart(
+                sources_for_viz, snr_path,
+                clip_samples=clip.samples, sr=clip.sample_rate,
+            )
+            plot_urls["separation_sources"] = (
+                f"/api/plot?job={job_id}&name=separation_sources.png"
+            )
+        except Exception as exc:
+            notes.append(f"separation chart skipped: {exc}")
+
+    payload["plots"] = plot_urls
+
     (job_dir / "separation.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
 
