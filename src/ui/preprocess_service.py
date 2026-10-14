@@ -15,7 +15,8 @@ from ..diarization import Diarizer
 from ..preprocessing import Preprocessor
 from ..separation import Separator
 from ..separation.stitch import build_speaker_tracks
-from ..types import AudioClip, DiarizationResult, SpeakerTurn
+from ..asr.sarvam import SarvamASR
+from ..types import AudioClip, DiarizationResult, SeparatedSource, SpeakerTurn
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -154,6 +155,7 @@ def run_separation(job_id: str, output_root: str | Path) -> dict[str, object]:
         sf.write(path, source.samples, clip.sample_rate)
         separated_files.append({
             "speaker": source.speaker,
+            "filename": path.name,
             "region": {"start_s": source.region[0], "end_s": source.region[1]},
             "url": f"/api/file?job={job_id}&kind=separated&name={path.name}",
             "waveform_url": f"/api/waveform?job={job_id}&kind=separated&name={path.name}",
@@ -180,6 +182,67 @@ def run_separation(job_id: str, output_root: str | Path) -> dict[str, object]:
         "notes": notes,
     }
     (job_dir / "separation.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+def run_asr(job_id: str, output_root: str | Path) -> dict[str, object]:
+    """Run the Sarvam ASR adapter on the completed speaker-track artifacts."""
+    job_dir = _job_dir(job_id, output_root)
+    timeline = json.loads((job_dir / "timeline.json").read_text(encoding="utf-8"))
+    samples, sample_rate = sf.read(str(job_dir / "processed.wav"), dtype="float32")
+    if samples.ndim > 1:
+        samples = samples.mean(axis=1)
+    clip = AudioClip(samples=samples, sample_rate=sample_rate, source_path=str(job_dir / "processed.wav"))
+    turns = [
+        SpeakerTurn(float(turn["start_s"]), float(turn["end_s"]), str(turn["speaker"]))
+        for turn in timeline["turns"]
+    ]
+    overlap_regions = [
+        (float(region["start_s"]), float(region["end_s"]))
+        for region in timeline["overlap_regions"]
+    ]
+    separated: list[SeparatedSource] = []
+    separation_path = job_dir / "separation.json"
+    if separation_path.exists():
+        separation = json.loads(separation_path.read_text(encoding="utf-8"))
+        for source in separation["separated_sources"]:
+            source_path = job_dir / "separated" / str(source["filename"])
+            source_samples, _ = sf.read(str(source_path), dtype="float32")
+            separated.append(SeparatedSource(
+                region=(float(source["region"]["start_s"]), float(source["region"]["end_s"])),
+                speaker=str(source["speaker"]), samples=source_samples,
+            ))
+    cfg = load_config(REPO_ROOT / "config" / "live.yaml")
+    diarization = DiarizationResult(
+        turns=turns, overlap_regions=overlap_regions,
+        num_speakers=int(timeline["num_speakers"]),
+    )
+    notes: list[str] = []
+    asr = SarvamASR(cfg.asr)
+    asr.load()
+    transcript = asr.run(clip, diarization, separated, notes)
+    segments = [
+        {
+            "start": round(segment.start, 3),
+            "end": round(segment.end, 3),
+            "speaker": segment.speaker,
+            "text": segment.text,
+            "lang": segment.lang,
+            "words": [
+                {"text": word.text, "start": round(word.start, 3), "end": round(word.end, 3)}
+                for word in segment.words
+            ],
+        }
+        for segment in transcript.segments
+    ]
+    payload = {
+        "job_id": job_id,
+        "backend": str(cfg.asr.backend),
+        "model": str(cfg.asr.model),
+        "segments": segments,
+        "notes": notes,
+    }
+    (job_dir / "transcript.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     return payload
 
 

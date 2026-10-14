@@ -181,11 +181,11 @@
       }
       .slides {
         display: flex;
-        width: 400%;
+        width: 500%;
         transition: transform 0.65s cubic-bezier(0.22, 0.8, 0.25, 1);
       }
       .slide {
-        width: 25%;
+        width: 20%;
         min-height: 450px;
         padding: 34px;
       }
@@ -465,6 +465,24 @@
         border-top: 1px solid var(--line);
         padding-top: 16px;
       }
+      .transcript-list {
+        display: grid;
+        gap: 9px;
+        margin-top: 20px;
+      }
+      .transcript-row {
+        display: grid;
+        grid-template-columns: 108px 118px 1fr;
+        gap: 12px;
+        align-items: start;
+        border-left: 4px solid var(--mint);
+        background: #f3efe7;
+        padding: 12px;
+      }
+      .transcript-row:nth-child(2n) { border-color: var(--coral); }
+      .transcript-row .speaker-name { font: 500 11px "DM Mono", monospace; }
+      .transcript-row .time { color: var(--muted); font: 500 11px "DM Mono", monospace; }
+      .transcript-row .text { line-height: 1.5; }
       .source-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -523,7 +541,7 @@
             transformation begins.
           </p>
         </div>
-        <div class="stage-label mono">01—04 / local pipeline</div>
+        <div class="stage-label mono">01—05 / local pipeline</div>
       </header>
       <div class="progress-wrap" aria-live="polite">
         <div class="progress-track">
@@ -672,6 +690,32 @@
             </div>
             <div class="speaker-grid" id="speakers"></div>
           </article>
+          <article class="slide">
+            <div class="slide-grid">
+              <div>
+                <div class="kicker">Stage 05 / Sarvam speech-to-text</div>
+                <h2>Give the voices their words.</h2>
+                <p class="lede">
+                  Sarvam AI transcribes each speaker track independently, keeping
+                  the speaker label and word timestamps attached to the result.
+                </p>
+                <div class="loader"></div>
+                <div class="status" id="asrStatus">Waiting for speaker tracks…</div>
+              </div>
+              <div class="visual">
+                <div>
+                  <div class="kicker">Transcript engine</div>
+                  <div class="metric-row">
+                    <div class="metric"><b>Sarvam</b><span>backend</span></div>
+                    <div class="metric"><b>v4</b><span>Saaras model</span></div>
+                    <div class="metric"><b id="segmentCount">--</b><span>segments</span></div>
+                  </div>
+                  <p class="lede">Your <span class="mono">SARVAM_API_KEY</span> stays server-side.</p>
+                </div>
+              </div>
+            </div>
+            <div id="asrResult"></div>
+          </article>
         </div>
         <button
           class="side-nav prev"
@@ -706,6 +750,10 @@
             ><input type="radio" name="stage" value="3" /><span></span
             >Speakers</label
           >
+          <label class="carousel-dot"
+            ><input type="radio" name="stage" value="4" /><span></span
+            >ASR</label
+          >
         </div>
       </section>
     </main>
@@ -732,7 +780,7 @@
       }
       function go(index) {
         currentStage = index;
-        slides.style.transform = `translateX(-${index * 25}%)`;
+        slides.style.transform = `translateX(-${index * 20}%)`;
         dots.forEach((dot, i) => (dot.checked = i === index));
         dotLabels.forEach((label, i) =>
           label.classList.toggle("available", i <= maxStage),
@@ -829,6 +877,12 @@
         const total = data.duration_s || 1;
         return `<div class="metric-row"><div class="metric"><b>${data.num_speakers}</b><span>speakers found</span></div><div class="metric"><b>${data.turns.length}</b><span>speaker turns</span></div><div class="metric"><b>${data.overlap_regions.length}</b><span>merged intervals</span></div></div><div class="timeline">${data.turns.map((turn) => `<div class="turn"><div class="turn-bar" style="width:${Math.max(8, ((turn.end_s - turn.start_s) / total) * 100)}%">${turn.speaker} · ${turn.start}—${turn.end}</div></div>`).join("")}</div>${data.overlap_regions.length ? `<div class="overlap">${data.overlap_regions.length} merged interval(s) marked for Stage 3.</div>` : '<div class="skip">No merged intervals found. Stage 3 will pass through without loading a separator.</div>'}<details><summary>Open timeline JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
+      function transcript(data) {
+        const rows = data.segments
+          .map((segment) => `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s — ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`)
+          .join("");
+        return `<div class="transcript-list">${rows || '<div class="skip">Sarvam returned no transcript segments.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+      }
       function escape(value) {
         return value.replace(
           /[&<>]/g,
@@ -917,12 +971,24 @@
             ),
           );
           maxStage = 3;
+          progress(80, "Speaker tracks complete");
+          go(4);
+          message("asrStatus", "Sending speaker tracks to Sarvam AI…");
+          const asr = await post("/api/asr", { job_id: job });
+          $("segmentCount").textContent = asr.segments.length;
+          $("asrResult").innerHTML = transcript(asr);
+          message(
+            "asrStatus",
+            asr.notes.length ? asr.notes.join(" ") : "Sarvam transcript ready.",
+          );
+          maxStage = 4;
           progress(100, "Pipeline complete");
-          go(3);
+          go(4);
         } catch (error) {
           message("status", error.message, true);
           message("diarStatus", "The journey stopped here.", true);
           message("sepStatus", "Waiting for the previous stage.", true);
+          message("asrStatus", "Waiting for speaker tracks.", true);
           progress(0, "Pipeline stopped");
           $("start").disabled = false;
         }
@@ -937,6 +1003,8 @@
         $("diarResult").innerHTML = "";
         $("sepResult").innerHTML = "";
         $("speakers").innerHTML = "";
+        $("asrResult").innerHTML = "";
+        $("segmentCount").textContent = "--";
         $("start").disabled = true;
         go(0);
         progress(0, "Waiting for audio");
