@@ -93,15 +93,8 @@ def _job_dir(job_id: str, output_root: str | Path) -> Path:
 def run_diarization(
     job_id: str,
     output_root: str | Path,
-    embedding_backend: str | None = None,
 ) -> dict[str, object]:
-    """Run Stage 2 on the conditioned clip and persist the timeline JSON.
-
-    ``embedding_backend`` overrides cfg.diarization.embedding.  Accepted values:
-      ``"ecapa"``  – SpeechBrain ECAPA-TDNN (richer, recommended when the model is cached)
-      ``"mfcc"``   – MFCC statistics (lightweight, fully offline, no extra model files)
-    Omit (or pass ``None``) to keep whatever the config file specifies.
-    """
+    """Run Stage 2 on the conditioned clip and persist the timeline JSON."""
     job_dir = _job_dir(job_id, output_root)
     audio_path = job_dir / "processed.wav"
     samples, sample_rate = sf.read(str(audio_path), dtype="float32")
@@ -110,8 +103,6 @@ def run_diarization(
     clip = AudioClip(samples=samples, sample_rate=sample_rate, source_path=str(audio_path))
 
     cfg = load_config(REPO_ROOT / "config" / "default.yaml")
-    if embedding_backend and embedding_backend in ("ecapa", "mfcc"):
-        cfg.diarization.embedding = embedding_backend
     notes: list[str] = []
     diarizer = Diarizer(cfg.diarization, cfg.run)
     diarizer.load()

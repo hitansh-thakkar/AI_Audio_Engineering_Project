@@ -512,49 +512,6 @@
         color: var(--muted);
         margin-bottom: 9px;
       }
-      /* ── embedding backend toggle ─────────────────────────────────────── */
-      .embed-toggle {
-        margin: 18px 0 16px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 14px 16px;
-        background: #fbfaf5;
-      }
-      .embed-option {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        cursor: pointer;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--line);
-      }
-      .embed-option:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-      }
-      .embed-option input[type="radio"] {
-        display: inline-block;
-        accent-color: var(--coral);
-        width: 15px;
-        height: 15px;
-        flex-shrink: 0;
-        margin-top: 3px;
-        cursor: pointer;
-      }
-      .embed-label strong {
-        display: block;
-        font-size: 0.9rem;
-        margin-bottom: 2px;
-      }
-      .embed-label small {
-        color: var(--muted);
-        font-size: 0.78rem;
-        line-height: 1.4;
-      }
-      .embed-toggle.running {
-        opacity: 0.45;
-        pointer-events: none;
-      }
       /* ── matplotlib plot panels ───────────────────────────────────────── */
       .plot-grid {
         display: grid;
@@ -653,23 +610,6 @@
                   ></label
                 >
                 <div class="file-name mono" id="fileName">No file selected</div>
-                <div class="embed-toggle" id="embedToggle">
-                  <div class="kicker" style="margin-bottom:8px">Speaker embedding backend</div>
-                  <label class="embed-option">
-                    <input type="radio" name="embedding" value="ecapa" checked />
-                    <span class="embed-label">
-                      <strong>ECAPA-TDNN</strong>
-                      <small>SpeechBrain neural embeddings — higher accuracy, recommended</small>
-                    </span>
-                  </label>
-                  <label class="embed-option">
-                    <input type="radio" name="embedding" value="mfcc" />
-                    <span class="embed-label">
-                      <strong>MFCC statistics</strong>
-                      <small>Lightweight fallback — fully offline, no model file needed</small>
-                    </span>
-                  </label>
-                </div>
                 <div class="button-row">
                   <button id="start" disabled>Start the journey</button>
                 </div>
@@ -1044,12 +984,7 @@
           go(1);
           progress(30, "Diarization running");
           message("diarStatus", "Mapping speakers and building the timeline…");
-          const embedToggle = $("embedToggle");
-          const selectedEmbed = document.querySelector('input[name="embedding"]:checked');
-          const embeddingBackend = selectedEmbed ? selectedEmbed.value : "ecapa";
-          if (embedToggle) embedToggle.classList.add("running");
-          const diar = await post("/api/diarize", { job_id: job, embedding_backend: embeddingBackend });
-          if (embedToggle) embedToggle.classList.remove("running");
+          const diar = await post("/api/diarize", { job_id: job });
           $("diarResult").innerHTML = timeline(diar) + renderPlots(diar.plots || {});
           message(
             "diarStatus",
