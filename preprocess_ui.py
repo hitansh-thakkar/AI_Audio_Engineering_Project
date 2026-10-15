@@ -140,11 +140,107 @@ class Handler(BaseHTTPRequestHandler):
                 samples = samples.mean(axis=1)
             buckets = 260
             step = max(1, len(samples) // buckets)
-            values = [float(np.max(np.abs(samples[i:i + step]))) for i in range(0, len(samples), step)]
-            values = values[:buckets]
-            peak = max(values, default=0.0)
-            normalized = [round(value / peak, 4) for value in values] if peak else values
+            wv = [float(np.max(np.abs(samples[i:i + step]))) for i in range(0, len(samples), step)]
+            wv = wv[:buckets]
+            peak = max(wv, default=0.0)
+            normalized = [round(v / peak, 4) for v in wv] if peak else wv
             self._json(HTTPStatus.OK, {"samples": normalized, "peak": round(peak, 4)})
+            return
+        # ── /api/waveform_data — full per-speaker data for the interactive visualiser ──
+        if parsed.path == "/api/waveform_data":
+            qv = parse_qs(parsed.query)
+            job = qv.get("job", [""])[0]
+            if not re.fullmatch(r"[0-9a-f]{32}", job):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid job id"})
+                return
+            job_dir = (OUTPUT_ROOT / job).resolve()
+            if not job_dir.is_dir() or OUTPUT_ROOT.resolve() not in job_dir.parents:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Job not found"})
+                return
+            try:
+                timeline_path = job_dir / "timeline.json"
+                if not timeline_path.exists():
+                    self._json(HTTPStatus.NOT_FOUND, {"error": "Timeline not found"})
+                    return
+                timeline = json.loads(timeline_path.read_text(encoding="utf-8"))
+
+                # ── 1. combined waveform (processed.wav) ────────────────────
+                BUCKETS = 400
+                mix_path = job_dir / "processed.wav"
+                mix_samples, mix_sr = sf.read(str(mix_path), dtype="float32")
+                if mix_samples.ndim > 1:
+                    mix_samples = mix_samples.mean(axis=1)
+                duration_s = float(len(mix_samples)) / mix_sr
+                step = max(1, len(mix_samples) // BUCKETS)
+                mix_env = [
+                    float(np.max(np.abs(mix_samples[i:i + step])))
+                    for i in range(0, len(mix_samples), step)
+                ][:BUCKETS]
+                mix_peak = max(mix_env, default=1.0) or 1.0
+                mix_norm = [round(v / mix_peak, 4) for v in mix_env]
+
+                # ── 2. per-speaker waveforms + turn regions ─────────────────
+                turns: list[dict] = timeline.get("turns", [])
+                speakers: list[str] = sorted({t["speaker"] for t in turns})
+                speaker_dir = job_dir / "speakers"
+
+                speaker_data: list[dict[str, object]] = []
+                for speaker in speakers:
+                    wav_path = speaker_dir / f"{speaker}.wav"
+                    spk_env: list[float] = []
+                    if wav_path.is_file():
+                        spk_samples, spk_sr = sf.read(str(wav_path), dtype="float32")
+                        if spk_samples.ndim > 1:
+                            spk_samples = spk_samples.mean(axis=1)
+                        spk_step = max(1, len(spk_samples) // BUCKETS)
+                        raw_env = [
+                            float(np.max(np.abs(spk_samples[i:i + spk_step])))
+                            for i in range(0, len(spk_samples), spk_step)
+                        ][:BUCKETS]
+                        spk_peak = max(raw_env, default=1.0) or 1.0
+                        spk_env = [round(v / spk_peak, 4) for v in raw_env]
+
+                    # turn segments as fraction of total duration (0..1)
+                    seg_turns = [
+                        {
+                            "start": round(t["start_s"] / duration_s, 6),
+                            "end": round(t["end_s"] / duration_s, 6),
+                            "start_s": t["start_s"],
+                            "end_s": t["end_s"],
+                        }
+                        for t in turns
+                        if t["speaker"] == speaker
+                    ]
+                    speaker_data.append({
+                        "speaker": speaker,
+                        "samples": spk_env,
+                        "turns": seg_turns,
+                        "audio_url": (
+                            f"/api/file?job={job}&kind=speakers&name={speaker}.wav"
+                        ),
+                    })
+
+                # ── 3. overlap regions as fractions ────────────────────────
+                overlap_regions = [
+                    {
+                        "start": round(r["start_s"] / duration_s, 6),
+                        "end": round(r["end_s"] / duration_s, 6),
+                    }
+                    for r in timeline.get("overlap_regions", [])
+                ]
+
+                self._json(HTTPStatus.OK, {
+                    "job_id": job,
+                    "duration_s": round(duration_s, 3),
+                    "buckets": BUCKETS,
+                    "mix": mix_norm,
+                    "mix_audio_url": f"/api/download?job={job}",
+                    "speakers": speaker_data,
+                    "overlap_regions": overlap_regions,
+                })
+            except Exception as exc:
+                self._json(HTTPStatus.INTERNAL_SERVER_ERROR,
+                           {"error": f"waveform_data failed: {type(exc).__name__}: {exc}"})
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 

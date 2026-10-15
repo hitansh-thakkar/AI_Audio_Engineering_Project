@@ -1,16 +1,22 @@
 """Stage 2 — diarization (the backbone): who spoke when.
 
 - source=oracle: load ground-truth RTTM (for the error-propagation ablation).
-- source=real: energy VAD -> windowed segments -> embeddings -> REQUIRED hand-applied
-  Spectral/GMM clustering -> merge into speaker turns. No prior speaker templates.
+- source=real:
+    * backend=precision2 (default): upload to pyannote.ai cloud, poll result.
+      Requires PYANNOTE_API_KEY in environment.  Falls back to hand-rolled
+      clustering when the key is absent or the API call fails.
+    * backend=community1 / legacy31 / anything else: energy VAD → windowed
+      segments → REQUIRED hand-applied Spectral/GMM clustering → merge turns.
 
 Emits a DiarizationResult (+ a timeline JSON written by the orchestrator).
 Degrades gracefully: no speech -> 1 speaker over the whole clip, noted.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+from ..config import load_env
 from ..types import AudioClip, DiarizationResult, SpeakerTurn
 from .clustering import cluster_embeddings
 from .embeddings import embed_segments
@@ -51,8 +57,52 @@ class Diarizer:
             turns=turns, overlap_regions=compute_overlaps(turns), num_speakers=len(speakers),
         )
 
+    # ---------------------------------------------------- precision-2 cloud API
+    def _precision2(self, clip: AudioClip, notes: list[str]) -> DiarizationResult | None:
+        """Try pyannote.ai precision-2.  Returns None on any failure so the caller
+        can transparently fall back to the hand-rolled path."""
+        load_env()
+        key_env = str(getattr(self.cfg, "api_key_env", "PYANNOTE_API_KEY"))
+        api_key = os.environ.get(key_env)
+        if not api_key:
+            notes.append(
+                f"pyannote.ai backend requested but {key_env} is not set; "
+                "falling back to hand-rolled clustering"
+            )
+            return None
+        try:
+            from .pyannote_api import PyannoteAPIBackend
+            model = str(getattr(self.cfg, "model", "precision-2"))
+            backend = PyannoteAPIBackend(
+                api_key=api_key,
+                model=model,
+                num_speakers=self.cfg.num_speakers,
+                min_speakers=self.cfg.min_speakers,
+                max_speakers=self.cfg.max_speakers,
+            )
+            return backend.diarize(
+                clip.samples,
+                clip.sample_rate,
+                notes,
+                audio_path=getattr(clip, "source_path", None),
+            )
+        except Exception as exc:
+            detail = str(exc).replace("\n", " ")[:240]
+            notes.append(
+                f"pyannote.ai API error ({type(exc).__name__}: {detail}); "
+                "falling back to hand-rolled clustering"
+            )
+            return None
+
     # -------------------------------------------------------------------- real
     def _real(self, clip: AudioClip, notes: list[str]) -> DiarizationResult:
+        # --- try cloud backend first ---
+        if str(getattr(self.cfg, "backend", "community1")) == "precision2":
+            result = self._precision2(clip, notes)
+            if result is not None:
+                return result
+            # fall through to hand-rolled path
+
         sr = clip.sample_rate
         top_db = int(getattr(self.cfg, "vad_top_db", 30))
         win = float(getattr(self.cfg, "window_seconds", 1.5))

@@ -22,8 +22,11 @@ preprocessing:
 
 diarization:
   source: real            # real | oracle   (oracle loads ground-truth RTTM — for the ablation)
-  backend: community1     # community1 (free, local) | legacy31 (free, local) | precision2 (OPTIONAL PAID API)
-  model: pyannote/speaker-diarization-community-1
+  backend: precision2     # precision2 (pyannote.ai cloud, best quality; needs PYANNOTE_API_KEY)
+                          #   falls back to community1 automatically when key is absent or API fails
+                          # community1 (free, local HF model) | legacy31 (free, local)
+  api_key_env: PYANNOTE_API_KEY   # env var name that holds the pyannote.ai API key
+  model: precision-2      # pyannote.ai model name sent in the POST /diarize body
   clustering: spectral    # REQUIRED (proposal M2): spectral | gmm = hand-applied clustering of embeddings | builtin = pyannote end-to-end
   overlap_detector: none  # none | pyannote (gated-but-free model → overlap regions for separation; needs HF_TOKEN + accepted licence)
   emit_timeline_json: true  # REQUIRED M2 deliverable: time->speaker timeline JSON alongside the RTTM

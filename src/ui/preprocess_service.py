@@ -134,13 +134,13 @@ def run_diarization(
             embeddings = embed_segments(samples, sample_rate, segments,
                                         backend=backend_str, notes=notes)
             # build per-segment speaker labels from result turns
+            speaker_map = {spk: idx for idx, spk in enumerate(sorted({t.speaker for t in result.turns}))}
             labels = np.zeros(len(segments), dtype=int)
             for seg_idx, (seg_start, _) in enumerate(segments):
                 mid = seg_start + win / 2
                 for turn in result.turns:
                     if turn.start <= mid <= turn.end:
-                        spk_num = int(turn.speaker.split("_")[-1])
-                        labels[seg_idx] = spk_num
+                        labels[seg_idx] = speaker_map.get(turn.speaker, 0)
                         break
             heatmap_path = plots_dir / "embedding_heatmap.png"
             embedding_heatmap(embeddings, labels, heatmap_path)
@@ -160,8 +160,10 @@ def run_diarization(
     except Exception as exc:
         notes.append(f"speaker gantt skipped: {exc}")
 
+    backend_label = "pyannote.ai precision-2" if any("pyannote.ai" in n for n in notes) else str(cfg.diarization.backend)
     payload = {
         "job_id": job_id,
+        "backend": backend_label,
         "duration_s": round(clip.duration, 2),
         "num_speakers": result.num_speakers,
         "turns": result.to_timeline_json(),
