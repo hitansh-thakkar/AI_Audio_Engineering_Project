@@ -547,8 +547,10 @@
       .viz-label {
         width: 98px;
         flex-shrink: 0;
-        font: 600 11px "DM Mono", monospace;
-        letter-spacing: .04em;
+        font:
+          600 11px "DM Mono",
+          monospace;
+        letter-spacing: 0.04em;
         padding: 5px 9px;
         border-radius: 4px;
         text-align: center;
@@ -576,12 +578,122 @@
         top: 0;
         bottom: 0;
         width: 2px;
-        background: rgba(255,255,255,.85);
+        background: rgba(255, 255, 255, 0.85);
         pointer-events: none;
         transform: translateX(-1px);
         will-change: left;
-        box-shadow: 0 0 6px rgba(255,255,255,.5);
+        box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
         z-index: 2;
+      }
+      /* ── Stage 04 Live Subtitles ────────────────────────────────────── */
+      .subtitle-box {
+        margin: 14px 0 16px;
+        background: #172225;
+        color: #f2eee5;
+        border-radius: 8px;
+        padding: 14px 18px;
+        box-shadow: 0 4px 16px rgba(23, 34, 37, 0.16);
+        border: 1px solid #2a3a3d;
+        transition: all 0.2s ease;
+      }
+      .subtitle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 6px;
+      }
+      .sub-kicker {
+        font:
+          600 10px "DM Mono",
+          monospace;
+        letter-spacing: 0.08em;
+        color: var(--coral);
+        text-transform: uppercase;
+      }
+      .sub-time {
+        font:
+          500 11px "DM Mono",
+          monospace;
+        color: var(--yellow);
+      }
+      .subtitle-content {
+        min-height: 44px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        justify-content: center;
+      }
+      .sub-item {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .sub-speaker-badge {
+        font:
+          600 10px "DM Mono",
+          monospace;
+        padding: 3px 8px;
+        border-radius: 4px;
+        color: #fff;
+        white-space: nowrap;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+      }
+      .sub-text {
+        font-size: 1.05rem;
+        line-height: 1.45;
+        color: #ffffff;
+        font-weight: 500;
+      }
+      .sub-word {
+        display: inline-block;
+        padding: 0 2px;
+        transition: all 0.1s ease;
+      }
+      .sub-word.active {
+        color: var(--yellow);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        transform: scale(1.05);
+      }
+      .sub-word.past {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .sub-word.future {
+        color: rgba(255, 255, 255, 0.45);
+      }
+      .sub-idle {
+        font-size: 0.92rem;
+        color: rgba(255, 255, 255, 0.45);
+        font-style: italic;
+      }
+      .viz-row {
+        transition: transform 0.15s ease;
+      }
+      .viz-row.is-speaking .viz-canvas-wrap {
+        box-shadow:
+          0 0 0 2px var(--yellow),
+          0 0 12px rgba(232, 188, 104, 0.35);
+      }
+      .viz-row.is-speaking .viz-label {
+        filter: brightness(1.15);
+        font-weight: 700;
+      }
+      .transcript-row {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .transcript-row:hover {
+        background: #fbf7ee;
+        transform: translateX(3px);
+      }
+      .transcript-row.active {
+        background: #fff8eb !important;
+        border-left: 6px solid var(--yellow) !important;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
       }
       @media (max-width: 760px) {
         main {
@@ -770,8 +882,8 @@
                       <b>WAV</b><span>download format</span>
                     </div>
                   </div>
-                  <p class="lede" style="margin-top:10px;font-size:.82rem">
-                    Highlighted blocks = speaker turns.<br>
+                  <p class="lede" style="margin-top: 10px; font-size: 0.82rem">
+                    Highlighted blocks = speaker turns.<br />
                     Grey waveform = silence / other speaker.
                   </p>
                 </div>
@@ -779,32 +891,110 @@
             </div>
 
             <!-- ── interactive multi-speaker waveform visualiser ─────────── -->
-            <div id="waveViz" style="display:none;margin-top:4px">
-              <div style="border-top:1px solid var(--line);padding-top:16px;margin-bottom:14px">
-                <div class="kicker" style="margin-bottom:12px">Speaker segments</div>
+            <div id="waveViz" style="display: none; margin-top: 4px">
+              <div
+                style="
+                  border-top: 1px solid var(--line);
+                  padding-top: 16px;
+                  margin-bottom: 14px;
+                "
+              >
+                <div class="kicker" style="margin-bottom: 12px">
+                  Speaker segments
+                </div>
                 <!-- transport row -->
-                <div style="display:flex;align-items:center;gap:12px">
-                  <button id="playPauseBtn"
-                    style="width:40px;height:40px;border-radius:50%;padding:0;font-size:1.15rem;line-height:1;flex-shrink:0"
-                    aria-label="Play / Pause">&#9654;</button>
-                  <div id="seekBar"
-                    style="flex:1;height:6px;border-radius:6px;background:#e0dbd0;cursor:pointer;position:relative">
-                    <div id="seekFill"
-                      style="position:absolute;inset:0;right:auto;width:0%;border-radius:inherit;
-                             background:linear-gradient(90deg,var(--coral),var(--yellow),var(--mint));
-                             pointer-events:none;transition:width .08s linear"></div>
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <button
+                    id="playPauseBtn"
+                    style="
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 50%;
+                      padding: 0;
+                      font-size: 1.15rem;
+                      line-height: 1;
+                      flex-shrink: 0;
+                    "
+                    aria-label="Play / Pause"
+                  >
+                    &#9654;
+                  </button>
+                  <div
+                    id="seekBar"
+                    style="
+                      flex: 1;
+                      height: 6px;
+                      border-radius: 6px;
+                      background: #e0dbd0;
+                      cursor: pointer;
+                      position: relative;
+                    "
+                  >
+                    <div
+                      id="seekFill"
+                      style="
+                        position: absolute;
+                        inset: 0;
+                        right: auto;
+                        width: 0%;
+                        border-radius: inherit;
+                        background: linear-gradient(
+                          90deg,
+                          var(--coral),
+                          var(--yellow),
+                          var(--mint)
+                        );
+                        pointer-events: none;
+                        transition: width 0.08s linear;
+                      "
+                    ></div>
                   </div>
-                  <span id="timeDisplay"
-                    style="font:500 11px 'DM Mono',monospace;color:var(--muted);white-space:nowrap;min-width:88px;text-align:right">
-                    0:00 / 0:00</span>
+                  <span
+                    id="timeDisplay"
+                    style="
+                      font:
+                        500 11px &quot;DM Mono&quot;,
+                        monospace;
+                      color: var(--muted);
+                      white-space: nowrap;
+                      min-width: 88px;
+                      text-align: right;
+                    "
+                  >
+                    0:00 / 0:00</span
+                  >
+                </div>
+
+                <!-- live subtitle card -->
+                <div class="subtitle-box" id="vizSubtitleBox">
+                  <div class="subtitle-header">
+                    <span class="sub-kicker"
+                      >Live Subtitles &middot; Timestamp Synced</span
+                    >
+                    <span class="sub-time" id="subTimestamp">0:00.00</span>
+                  </div>
+                  <div class="subtitle-content" id="vizSubtitles">
+                    <span class="sub-idle"
+                      >&#9654; Press play or seek anywhere on the waveform to
+                      track spoken words</span
+                    >
+                  </div>
                 </div>
               </div>
               <!-- waveform rows injected here -->
               <div id="vizRows"></div>
               <!-- download buttons injected here -->
-              <div id="speakerDownloads"
-                style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
-              </div>
+              <div
+                id="speakerDownloads"
+                style="
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 10px;
+                  margin-top: 18px;
+                  padding-top: 14px;
+                  border-top: 1px solid var(--line);
+                "
+              ></div>
             </div>
 
             <!-- legacy plain speaker grid (shown only when waveform_data unavailable) -->
@@ -897,12 +1087,12 @@
 
       // ── speaker palette (dark-background friendly) ──────────────────────
       const SPK_COLORS = [
-        "#e8a03a",  // amber
-        "#5bb8d4",  // cyan
-        "#7ec86e",  // green
-        "#c97fe8",  // violet
-        "#e87b7b",  // rose
-        "#71b0e8",  // sky
+        "#e8a03a", // amber
+        "#5bb8d4", // cyan
+        "#7ec86e", // green
+        "#c97fe8", // violet
+        "#e87b7b", // rose
+        "#71b0e8", // sky
       ];
       const waveColors = SPK_COLORS; // legacy alias used by old drawWaveform calls
 
@@ -1021,15 +1211,17 @@
 
       function timeline(data) {
         const total = data.duration_s || 1;
-        const backendBadge = data.backend ? `<div style="margin-bottom: 10px;"><small class="mono" style="color:var(--coral); font-weight:bold; background:#fff2ee; padding:3px 8px; border-radius:4px; border:1px solid #fed7cc;">ENGINE: ${escape(data.backend)}</small></div>` : "";
+        const backendBadge = data.backend
+          ? `<div style="margin-bottom: 10px;"><small class="mono" style="color:var(--coral); font-weight:bold; background:#fff2ee; padding:3px 8px; border-radius:4px; border:1px solid #fed7cc;">ENGINE: ${escape(data.backend)}</small></div>`
+          : "";
         return `${backendBadge}<div class="metric-row"><div class="metric"><b>${data.num_speakers}</b><span>speakers found</span></div><div class="metric"><b>${data.turns.length}</b><span>speaker turns</span></div><div class="metric"><b>${data.overlap_regions.length}</b><span>merged intervals</span></div></div><div class="timeline">${data.turns.map((turn) => `<div class="turn"><div class="turn-bar" style="width:${Math.max(8, ((turn.end_s - turn.start_s) / total) * 100)}%">${turn.speaker} · ${turn.start}&mdash;${turn.end}</div></div>`).join("")}</div>${data.overlap_regions.length ? `<div class="overlap">${data.overlap_regions.length} merged interval(s) marked for Stage 3.</div>` : '<div class="skip">No merged intervals found. Stage 3 will pass through without loading a separator.</div>'}<details><summary>Open timeline JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
 
       function transcript(data) {
         const rows = data.segments
           .map(
-            (segment) =>
-              `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s &mdash; ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`,
+            (segment, idx) =>
+              `<div class="transcript-row" id="transcript-row-${idx}" data-start="${segment.start}" data-end="${segment.end}" onclick="seekToTranscriptTime(${segment.start})" title="Click to play from ${segment.start.toFixed(2)}s"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s &mdash; ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`,
           )
           .join("");
         return `<div class="transcript-list">${rows || '<div class="skip">Sarvam returned no transcript segments.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
@@ -1044,46 +1236,48 @@
 
       /* ── matplotlib plot renderer ───────────────────────────────────── */
       const PLOT_LABELS = {
-        energy_vad:         "Energy VAD — speech regions",
-        embedding_heatmap:  "Embedding similarity heatmap",
-        speaker_gantt:      "Speaker timeline (Gantt)",
+        energy_vad: "Energy VAD — speech regions",
+        embedding_heatmap: "Embedding similarity heatmap",
+        speaker_gantt: "Speaker timeline (Gantt)",
         separation_sources: "Separated sources — amplitude envelopes",
       };
       function renderPlots(plots) {
         if (!plots || !Object.keys(plots).length) return "";
-        const items = Object.entries(plots).map(([key, url]) => {
-          const label = PLOT_LABELS[key] || key;
-          return `<div class="plot-card"><div class="plot-label mono">${label}</div><img class="plot-img" src="${url}" alt="${label}" loading="lazy" /></div>`;
-        }).join("");
+        const items = Object.entries(plots)
+          .map(([key, url]) => {
+            const label = PLOT_LABELS[key] || key;
+            return `<div class="plot-card"><div class="plot-label mono">${label}</div><img class="plot-img" src="${url}" alt="${label}" loading="lazy" /></div>`;
+          })
+          .join("");
         return `<div class="plot-grid">${items}</div>`;
       }
 
       /* ═══════════════════════════════════════════════════════════════════
          INTERACTIVE MULTI-SPEAKER WAVEFORM VISUALISER
          ═══════════════════════════════════════════════════════════════════ */
-      let vizAudio = null;       // single hidden HTMLAudioElement for the mix
-      let vizData  = null;       // cached /api/waveform_data response
-      let vizCursors = [];       // all .viz-cursor elements (one per row)
+      let vizAudio = null; // single hidden HTMLAudioElement for the mix
+      let vizData = null; // cached /api/waveform_data response
+      let vizCursors = []; // all .viz-cursor elements (one per row)
       let animFrame = null;
 
       /* Draw one waveform canvas row.
          bars = [0..1] amplitude array, turns = [{start,end} as 0..1 fractions],
          color = hex for speaker highlight, bgColor = base bar color */
       function drawVizCanvas(canvas, bars, turns, hexColor) {
-        const DIM_COLOR  = "rgba(255,255,255,0.12)";  // inactive bars (dark bg)
+        const DIM_COLOR = "rgba(255,255,255,0.12)"; // inactive bars (dark bg)
         const ratio = window.devicePixelRatio || 1;
         const W = canvas.parentElement.clientWidth || 600;
         const H = 64;
-        canvas.width  = W * ratio;
+        canvas.width = W * ratio;
         canvas.height = H * ratio;
-        canvas.style.width  = W + "px";
+        canvas.style.width = W + "px";
         canvas.style.height = H + "px";
         const ctx = canvas.getContext("2d");
         ctx.scale(ratio, ratio);
         ctx.clearRect(0, 0, W, H);
 
         const n = bars.length || 1;
-        const bw = W / n;        // bar slot width (may be fractional)
+        const bw = W / n; // bar slot width (may be fractional)
 
         // ── 1. draw dim bars everywhere first ──────────────────────────
         ctx.fillStyle = DIM_COLOR;
@@ -1094,19 +1288,30 @@
 
         // ── 2. overpaint highlighted bars inside each turn region ──────
         // Parse hex color once, derive a slightly transparent fill
-        let r = 255, g = 200, b = 80;
+        let r = 255,
+          g = 200,
+          b = 80;
         const m = hexColor.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-        if (m) { r = parseInt(m[1], 16); g = parseInt(m[2], 16); b = parseInt(m[3], 16); }
+        if (m) {
+          r = parseInt(m[1], 16);
+          g = parseInt(m[2], 16);
+          b = parseInt(m[3], 16);
+        }
 
         for (const turn of turns) {
           const x0 = Math.floor(turn.start * n);
-          const x1 = Math.ceil(turn.end   * n);
+          const x1 = Math.ceil(turn.end * n);
           for (let i = x0; i < x1 && i < n; i++) {
             const bh = Math.max(1.5, bars[i] * (H * 0.46));
             // semi-transparent fill behind the bar to create the "block" effect
             const blockH = Math.max(bh * 2 + 6, 12);
             ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
-            ctx.fillRect(i * bw, H / 2 - blockH / 2, Math.max(1, bw - 0.8), blockH);
+            ctx.fillRect(
+              i * bw,
+              H / 2 - blockH / 2,
+              Math.max(1, bw - 0.8),
+              blockH,
+            );
             // bright bar
             ctx.fillStyle = `rgba(${r},${g},${b},0.90)`;
             ctx.fillRect(i * bw, H / 2 - bh, Math.max(1, bw - 0.8), bh * 2);
@@ -1156,57 +1361,232 @@
             if (!vizAudio || !data.duration_s) return;
             const rect = wrap.getBoundingClientRect();
             const frac = (e.clientX - rect.left) / rect.width;
-            vizAudio.currentTime = Math.max(0, Math.min(data.duration_s, frac * data.duration_s));
+            vizAudio.currentTime = Math.max(
+              0,
+              Math.min(data.duration_s, frac * data.duration_s),
+            );
+            renderSubtitlesAtTime(vizAudio.currentTime);
           });
 
           const rowEl = document.createElement("div");
           rowEl.className = "viz-row";
+          rowEl.dataset.speaker = row.speaker;
           rowEl.appendChild(label);
           rowEl.appendChild(wrap);
           container.appendChild(rowEl);
 
           // draw (after append so clientWidth is available)
-          requestAnimationFrame(() => drawVizCanvas(canvas, row.samples, row.turns, row.color));
+          requestAnimationFrame(() =>
+            drawVizCanvas(canvas, row.samples, row.turns, row.color),
+          );
         }
 
         // re-draw on resize
         window.addEventListener("resize", () => {
-          const allWraps = container.querySelectorAll(".viz-canvas-wrap canvas");
+          const allWraps = container.querySelectorAll(
+            ".viz-canvas-wrap canvas",
+          );
           rows.forEach((row, i) => {
-            if (allWraps[i]) drawVizCanvas(allWraps[i], row.samples, row.turns, row.color);
+            if (allWraps[i])
+              drawVizCanvas(allWraps[i], row.samples, row.turns, row.color);
           });
         });
       }
 
+      /* ── Stage 04 Live Subtitles Synchronizer ─────────────────────────── */
+      let vizSegments = [];
+
+      function setVizSubtitles(segments) {
+        if (Array.isArray(segments) && segments.length) {
+          vizSegments = segments;
+          if (vizAudio) {
+            renderSubtitlesAtTime(vizAudio.currentTime || 0);
+          }
+        }
+      }
+
+      function highlightTranscriptRow(activeSeg) {
+        if (!activeSeg) return;
+        const allRows = document.querySelectorAll(".transcript-row");
+        allRows.forEach((r) => {
+          const s = parseFloat(r.getAttribute("data-start"));
+          if (!isNaN(s) && Math.abs(s - activeSeg.start) < 0.05) {
+            r.classList.add("active");
+          } else {
+            r.classList.remove("active");
+          }
+        });
+      }
+
+      function seekToTranscriptTime(time) {
+        if (!vizAudio || !vizData || !vizData.duration_s) return;
+        vizAudio.currentTime = Math.max(0, Math.min(vizData.duration_s, time));
+        renderSubtitlesAtTime(vizAudio.currentTime);
+        if (vizAudio.paused) {
+          vizAudio.play();
+        }
+        updateCursor();
+        // smoothly navigate/scroll to Stage 04 player if currently on Stage 05
+        go(3);
+      }
+
+      function renderSubtitlesAtTime(currentTime) {
+        const subBox = $("vizSubtitles");
+        const subTime = $("subTimestamp");
+        if (!subBox) return;
+
+        if (subTime) {
+          const m = Math.floor(currentTime / 60);
+          const s = currentTime % 60;
+          subTime.textContent = `${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}`;
+        }
+
+        // Reset speaking indicator on waveform rows
+        document
+          .querySelectorAll(".viz-row")
+          .forEach((r) => r.classList.remove("is-speaking"));
+
+        // 1. Check ASR transcript segments (primary rich source)
+        const segments =
+          vizSegments && vizSegments.length
+            ? vizSegments
+            : vizData && vizData.segments
+              ? vizData.segments
+              : [];
+        const activeSegs = segments.filter(
+          (s) => currentTime >= s.start && currentTime <= s.end,
+        );
+
+        if (activeSegs.length > 0) {
+          subBox.innerHTML = activeSegs
+            .map((s) => {
+              const spkIdx =
+                vizData && vizData.speakers
+                  ? vizData.speakers.findIndex((sp) => sp.speaker === s.speaker)
+                  : 0;
+              const color =
+                spkIdx >= 0
+                  ? SPK_COLORS[spkIdx % SPK_COLORS.length]
+                  : "#ee765f";
+
+              // Highlight the matching speaker row
+              const row = document.querySelector(
+                `.viz-row[data-speaker="${s.speaker}"]`,
+              );
+              if (row) row.classList.add("is-speaking");
+
+              // Word-level highlighting if word timestamps are present
+              let textHtml = "";
+              if (s.words && s.words.length > 0) {
+                textHtml = s.words
+                  .map((w) => {
+                    let cls = "sub-word";
+                    if (currentTime >= w.start && currentTime <= w.end) {
+                      cls += " active";
+                    } else if (currentTime > w.end) {
+                      cls += " past";
+                    } else {
+                      cls += " future";
+                    }
+                    return `<span class="${cls}">${escape(w.text)}</span>`;
+                  })
+                  .join(" ");
+              } else {
+                textHtml = escape(s.text);
+              }
+
+              return `<div class="sub-item">
+              <span class="sub-speaker-badge" style="background:${color}">${escape(s.speaker)}</span>
+              <span class="sub-text">${textHtml}</span>
+            </div>`;
+            })
+            .join("");
+
+          highlightTranscriptRow(activeSegs[0]);
+          return;
+        }
+
+        // 2. Fallback: Diarization turns (if ASR not yet run or non-speech/silent turn)
+        const turns = vizData && vizData.turns ? vizData.turns : [];
+        const activeTurns = turns.filter((t) => {
+          const st = t.start_s !== undefined ? t.start_s : t.start;
+          const et = t.end_s !== undefined ? t.end_s : t.end;
+          return currentTime >= st && currentTime <= et;
+        });
+
+        if (activeTurns.length > 0) {
+          subBox.innerHTML = activeTurns
+            .map((t) => {
+              const spk = t.speaker;
+              const spkIdx =
+                vizData && vizData.speakers
+                  ? vizData.speakers.findIndex((sp) => sp.speaker === spk)
+                  : 0;
+              const color =
+                spkIdx >= 0
+                  ? SPK_COLORS[spkIdx % SPK_COLORS.length]
+                  : "#ee765f";
+
+              const row = document.querySelector(
+                `.viz-row[data-speaker="${spk}"]`,
+              );
+              if (row) row.classList.add("is-speaking");
+
+              const timeLabel =
+                t.start && t.end
+                  ? `${t.start} &mdash; ${t.end}`
+                  : `${t.start_s?.toFixed(2)}s &mdash; ${t.end_s?.toFixed(2)}s`;
+              return `<div class="sub-item">
+              <span class="sub-speaker-badge" style="background:${color}">${escape(spk)}</span>
+              <span class="sub-text" style="color:var(--yellow); font-style:italic;">[Speaking &middot; ${timeLabel}]</span>
+            </div>`;
+            })
+            .join("");
+          return;
+        }
+
+        // 3. Silence / Idle
+        subBox.innerHTML = `<span class="sub-idle">&#9834; [Silence / No active speech]</span>`;
+      }
+
       function updateCursor() {
         if (!vizAudio || !vizData) return;
-        const frac = vizData.duration_s > 0
-          ? vizAudio.currentTime / vizData.duration_s : 0;
+        const frac =
+          vizData.duration_s > 0
+            ? vizAudio.currentTime / vizData.duration_s
+            : 0;
         const pct = (frac * 100).toFixed(3) + "%";
         for (const c of vizCursors) {
           // position relative to wrap width
           const wrapW = c.parentElement.clientWidth;
-          c.style.left = (frac * wrapW) + "px";
+          c.style.left = frac * wrapW + "px";
         }
         $("seekFill").style.width = pct;
         $("timeDisplay").textContent =
           fmtTime(vizAudio.currentTime) + " / " + fmtTime(vizData.duration_s);
+
+        renderSubtitlesAtTime(vizAudio.currentTime);
         animFrame = requestAnimationFrame(updateCursor);
       }
 
       function initVizAudio(url, duration) {
-        if (vizAudio) { vizAudio.pause(); vizAudio.src = ""; }
+        if (vizAudio) {
+          vizAudio.pause();
+          vizAudio.src = "";
+        }
         if (animFrame) cancelAnimationFrame(animFrame);
 
         vizAudio = new Audio(url);
         vizAudio.preload = "metadata";
 
-        vizAudio.addEventListener("play",  () => {
+        vizAudio.addEventListener("play", () => {
           $("playPauseBtn").innerHTML = "&#9646;&#9646;";
+          renderSubtitlesAtTime(vizAudio.currentTime);
           animFrame = requestAnimationFrame(updateCursor);
         });
         vizAudio.addEventListener("pause", () => {
           $("playPauseBtn").innerHTML = "&#9654;";
+          renderSubtitlesAtTime(vizAudio.currentTime);
           cancelAnimationFrame(animFrame);
         });
         vizAudio.addEventListener("ended", () => {
@@ -1219,6 +1599,7 @@
           for (const c of vizCursors) {
             c.style.left = c.parentElement.clientWidth + "px";
           }
+          renderSubtitlesAtTime(duration);
         });
 
         $("playPauseBtn").onclick = () => {
@@ -1231,7 +1612,11 @@
         seekBar.addEventListener("click", (e) => {
           const rect = seekBar.getBoundingClientRect();
           const frac = (e.clientX - rect.left) / rect.width;
-          vizAudio.currentTime = Math.max(0, Math.min(duration, frac * duration));
+          vizAudio.currentTime = Math.max(
+            0,
+            Math.min(duration, frac * duration),
+          );
+          renderSubtitlesAtTime(vizAudio.currentTime);
           if (vizAudio.paused) updateCursor(); // update display once even if paused
         });
       }
@@ -1243,6 +1628,9 @@
           const data = await resp.json();
           if (!data.speakers || !data.speakers.length) return false;
           vizData = data;
+          if (data.segments && data.segments.length) {
+            setVizSubtitles(data.segments);
+          }
 
           buildVizRows(data);
           initVizAudio(data.mix_audio_url, data.duration_s);
@@ -1260,6 +1648,7 @@
           }
 
           $("waveViz").style.display = "block";
+          renderSubtitlesAtTime(0);
           return true;
         } catch (e) {
           return false;
@@ -1296,7 +1685,8 @@
           progress(30, "Diarization running");
           message("diarStatus", "Mapping speakers and building the timeline…");
           const diar = await post("/api/diarize", { job_id: job });
-          $("diarResult").innerHTML = timeline(diar) + renderPlots(diar.plots || {});
+          $("diarResult").innerHTML =
+            timeline(diar) + renderPlots(diar.plots || {});
           message(
             "diarStatus",
             diar.notes.length ? diar.notes.join(" ") : "Timeline ready.",
@@ -1363,6 +1753,7 @@
           const asr = await post("/api/asr", { job_id: job });
           $("segmentCount").textContent = asr.segments.length;
           $("asrResult").innerHTML = transcript(asr);
+          setVizSubtitles(asr.segments);
           message(
             "asrStatus",
             asr.notes.length ? asr.notes.join(" ") : "Sarvam transcript ready.",
@@ -1385,10 +1776,22 @@
         job = null;
         maxStage = 0;
         // stop audio
-        if (vizAudio) { vizAudio.pause(); vizAudio.src = ""; vizAudio = null; }
-        if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+        if (vizAudio) {
+          vizAudio.pause();
+          vizAudio.src = "";
+          vizAudio = null;
+        }
+        if (animFrame) {
+          cancelAnimationFrame(animFrame);
+          animFrame = null;
+        }
         vizData = null;
         vizCursors = [];
+        vizSegments = [];
+        if ($("vizSubtitles"))
+          $("vizSubtitles").innerHTML =
+            '<span class="sub-idle">&#9654; Press play or seek anywhere on the waveform to track spoken words</span>';
+        if ($("subTimestamp")) $("subTimestamp").textContent = "0:00.00";
         fileInput.value = "";
         $("fileName").textContent = "No file selected";
         $("prepResult").innerHTML = "";

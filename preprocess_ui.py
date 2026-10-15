@@ -229,6 +229,16 @@ class Handler(BaseHTTPRequestHandler):
                     for r in timeline.get("overlap_regions", [])
                 ]
 
+                # ── 4. transcript segments (subtitles) if available ────────
+                segments: list[dict] = []
+                transcript_path = job_dir / "transcript.json"
+                if transcript_path.is_file():
+                    try:
+                        tdata = json.loads(transcript_path.read_text(encoding="utf-8"))
+                        segments = tdata.get("segments", [])
+                    except Exception:
+                        segments = []
+
                 self._json(HTTPStatus.OK, {
                     "job_id": job,
                     "duration_s": round(duration_s, 3),
@@ -237,6 +247,8 @@ class Handler(BaseHTTPRequestHandler):
                     "mix_audio_url": f"/api/download?job={job}",
                     "speakers": speaker_data,
                     "overlap_regions": overlap_regions,
+                    "turns": turns,
+                    "segments": segments,
                 })
             except Exception as exc:
                 self._json(HTTPStatus.INTERNAL_SERVER_ERROR,
