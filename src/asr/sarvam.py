@@ -82,8 +82,19 @@ class SarvamASR:
                            offset: float = 0.0) -> list[TranscriptSegment]:
         timestamps = getattr(response, "timestamps", None)
         transcript = str(getattr(response, "transcript", "") or "").strip()
+        raw_lang = getattr(response, "language_code", None)
+
+        # Standardize known Sarvam language codes
+        lang_map = {
+            "hi-IN": "Hindi", "en-IN": "English", "bn-IN": "Bengali",
+            "kn-IN": "Kannada", "ml-IN": "Malayalam", "mr-IN": "Marathi",
+            "od-IN": "Odia", "pa-IN": "Punjabi", "ta-IN": "Tamil",
+            "te-IN": "Telugu", "gu-IN": "Gujarati",
+        }
+        lang = lang_map.get(raw_lang, raw_lang)
+
         if timestamps is None or not timestamps.words:
-            return [TranscriptSegment(offset, offset + duration, speaker, transcript or "<empty>")]
+            return [TranscriptSegment(offset, offset + duration, speaker, transcript or "<empty>", lang=lang)]
         words = [
             Word(text=text, start=offset + float(start), end=offset + float(end))
             for text, start, end in zip(
@@ -92,4 +103,4 @@ class SarvamASR:
             )
         ]
         return [TranscriptSegment(words[0].start, words[-1].end, speaker,
-                                  " ".join(word.text for word in words), words=words)]
+                                  " ".join(word.text for word in words), words=words, lang=lang)]

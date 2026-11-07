@@ -10,14 +10,16 @@ import numpy as np
 import soundfile as sf
 from omegaconf import OmegaConf
 
+from ..asr.gemini_asr import GeminiASR
+from ..asr.sarvam import SarvamASR
 from ..config import load_config
 from ..diarization import Diarizer
 from ..diarization.embeddings import embed_segments
 from ..diarization.vad import energy_vad, window_segments
+from ..postprocessing.gemini import GeminiPostProcessor
 from ..preprocessing import Preprocessor
 from ..separation import Separator
 from ..separation.stitch import build_speaker_tracks
-from ..asr.sarvam import SarvamASR
 from ..types import AudioClip, DiarizationResult, SeparatedSource, SpeakerTurn
 from .viz import energy_vad_chart, embedding_heatmap, speaker_gantt, separation_snr_chart
 
@@ -307,28 +309,57 @@ def run_asr(job_id: str, output_root: str | Path) -> dict[str, object]:
     asr = SarvamASR(cfg.asr)
     asr.load()
     transcript = asr.run(clip, diarization, separated, notes)
+
+    # If Sarvam is unavailable or failed on all segments, fall back to Gemini cloud ASR
+    if all(s.text in {"<asr-unavailable>", "<empty>"} for s in transcript.segments) and os.environ.get("GEMINI_API_KEY"):
+        gemini_asr = GeminiASR(cfg.asr)
+        gemini_asr.load()
+        if gemini_asr._client is not None:
+            notes.append("Using Gemini Multimodal Cloud Audio ASR for speech transcription")
+            transcript = gemini_asr.run(clip, diarization, separated, notes)
+
+    # Multilingual & Semantic Post-Processing via Gemini
+    post = GeminiPostProcessor(cfg.postprocessing)
+    post.load()
+    report = post.run(transcript, notes)
+
+    active_dialogue = report.dialogue if report.dialogue else transcript.segments
     segments = [
         {
             "start": round(segment.start, 3),
             "end": round(segment.end, 3),
             "speaker": segment.speaker,
             "text": segment.text,
-            "lang": segment.lang,
+            "lang": segment.lang or "Unknown",
+            "translation": getattr(segment, "translation", None),
+            "is_code_switched": bool(getattr(segment, "is_code_switched", False)),
             "words": [
                 {"text": word.text, "start": round(word.start, 3), "end": round(word.end, 3)}
                 for word in segment.words
             ],
         }
-        for segment in transcript.segments
+        for segment in active_dialogue
     ]
+
     payload = {
         "job_id": job_id,
-        "backend": str(cfg.asr.backend),
-        "model": str(cfg.asr.model),
+        "backend": f"{cfg.asr.backend} + gemini-multilingual",
+        "model": f"{cfg.asr.model} / {post.model_name}",
+        "summary": report.summary,
+        "tags": report.tags,
+        "languages": report.languages,
+        "language_breakdown": report.language_breakdown,
         "segments": segments,
         "notes": notes,
     }
     (job_dir / "transcript.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    (job_dir / "report.json").write_text(json.dumps({
+        "summary": report.summary,
+        "tags": report.tags,
+        "languages": report.languages,
+        "language_breakdown": report.language_breakdown,
+        "dialogue": segments,
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
     return payload
 
 

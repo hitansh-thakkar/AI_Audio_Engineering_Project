@@ -77,6 +77,8 @@ class TranscriptSegment:
     text: str
     words: list[Word] = field(default_factory=list)
     lang: str | None = None    # detected/segment language, incl. "mixed"
+    translation: str | None = None  # English translation if multilingual
+    is_code_switched: bool = False  # True if code-switching detected
 
 
 @dataclass
@@ -94,6 +96,8 @@ class Report:
     tags: list[str]
     dialogue: list[TranscriptSegment]   # speaker-separated, cleaned
     raw_transcript: Transcript
+    languages: list[str] = field(default_factory=list)
+    language_breakdown: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

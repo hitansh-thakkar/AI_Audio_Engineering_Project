@@ -467,25 +467,97 @@
       }
       .transcript-list {
         display: grid;
-        gap: 9px;
+        gap: 12px;
         margin-top: 20px;
+      }
+      .ai-summary-card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--mint);
+        padding: 18px 22px;
+        margin: 18px 0 24px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      }
+      .ai-summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .ai-summary-title {
+        font: 700 13px 'DM Mono', monospace;
+        letter-spacing: 0.06em;
+        color: var(--dark);
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ai-summary-text {
+        font-size: 0.96rem;
+        line-height: 1.65;
+        color: var(--ink);
+        margin: 0 0 14px;
+      }
+      .ai-summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .tag-pill {
+        font: 500 11px 'DM Mono', monospace;
+        background: #f1ede3;
+        color: var(--ink);
+        padding: 3px 9px;
+        border-radius: 12px;
+        border: 1px solid #ded6c7;
+      }
+      .lang-pill {
+        font: 600 11px 'DM Mono', monospace;
+        background: #edf5f1;
+        color: #1b533e;
+        padding: 3px 9px;
+        border-radius: 12px;
+        border: 1px solid #c8e2d4;
+      }
+      .lang-badge {
+        display: inline-block;
+        font: 500 10px 'DM Mono', monospace;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: #e5eee9;
+        color: #275240;
+        border: 1px solid #c2dbcd;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        vertical-align: middle;
+      }
+      .lang-badge.code-switch {
+        background: #fff3db;
+        color: #7b4f00;
+        border-color: #eed090;
+        font-weight: 600;
       }
       .transcript-row {
         display: grid;
-        grid-template-columns: 108px 118px 1fr;
-        gap: 12px;
+        grid-template-columns: 108px 135px 1fr;
+        gap: 14px;
         align-items: start;
         border-left: 4px solid var(--mint);
-        background: #f3efe7;
-        padding: 12px;
+        background: #fbf9f4;
+        padding: 14px;
+        border-radius: 2px;
+        transition: all 0.2s ease;
       }
       .transcript-row:nth-child(2n) {
         border-color: var(--coral);
       }
       .transcript-row .speaker-name {
         font:
-          500 11px "DM Mono",
+          600 11px "DM Mono",
           monospace;
+        color: var(--dark);
       }
       .transcript-row .time {
         color: var(--muted);
@@ -493,8 +565,42 @@
           500 11px "DM Mono",
           monospace;
       }
-      .transcript-row .text {
+      .transcript-row .text-col {
+        display: grid;
+        gap: 6px;
+      }
+      .transcript-row .text-primary {
+        font-size: 0.95rem;
         line-height: 1.5;
+        color: var(--ink);
+      }
+      .transcript-row .translation-box {
+        background: #f5f2ea;
+        border-left: 3px solid var(--yellow);
+        padding: 6px 10px;
+        border-radius: 3px;
+        font-size: 0.88rem;
+        color: #4b4840;
+        line-height: 1.45;
+      }
+      .transcript-row .translation-label {
+        font: 600 10px 'DM Mono', monospace;
+        text-transform: uppercase;
+        color: #8c7340;
+        margin-right: 6px;
+      }
+      .sub-lang-badge {
+        font: 600 10px 'DM Mono', monospace;
+        background: #243337;
+        color: #ffffff;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin-right: 6px;
+      }
+      .sub-translation {
+        margin-top: 4px;
+        font-size: 0.82rem;
+        color: #ffe6aa;
       }
       .source-grid {
         display: grid;
@@ -1003,12 +1109,11 @@
           <article class="slide">
             <div class="slide-grid">
               <div>
-                <div class="kicker">Stage 05 / Sarvam speech-to-text</div>
-                <h2>Give the voices their words.</h2>
+                <div class="kicker">Stage 05 / Multilingual ASR &amp; Intelligence</div>
+                <h2>Give the voices their words &amp; meaning.</h2>
                 <p class="lede">
-                  Sarvam AI transcribes each speaker track independently,
-                  keeping the speaker label and word timestamps attached to the
-                  result.
+                  Sarvam AI transcribes speaker tracks while Google Gemini detects code-switching (e.g. Hinglish),
+                  identifies regional Indian languages, translates dialogue into English, and extracts executive insights.
                 </p>
                 <div class="loader"></div>
                 <div class="status" id="asrStatus">
@@ -1017,17 +1122,16 @@
               </div>
               <div class="visual">
                 <div>
-                  <div class="kicker">Transcript engine</div>
+                  <div class="kicker">Multilingual Engine</div>
                   <div class="metric-row">
-                    <div class="metric"><b>Sarvam</b><span>backend</span></div>
-                    <div class="metric"><b>v4</b><span>Saaras model</span></div>
+                    <div class="metric"><b>Sarvam + Gemini</b><span>pipeline</span></div>
+                    <div class="metric"><b id="detectedLangsCount">--</b><span>languages</span></div>
                     <div class="metric">
-                      <b id="segmentCount">--</b><span>segments</span>
+                      <b id="segmentCount">--</b><span>turns</span>
                     </div>
                   </div>
                   <p class="lede">
-                    Your <span class="mono">SARVAM_API_KEY</span> stays
-                    server-side.
+                    Cloud-powered via <span class="mono">SARVAM_API_KEY</span> &amp; <span class="mono">GEMINI_API_KEY</span>.
                   </p>
                 </div>
               </div>
@@ -1218,13 +1322,62 @@
       }
 
       function transcript(data) {
-        const rows = data.segments
-          .map(
-            (segment, idx) =>
-              `<div class="transcript-row" id="transcript-row-${idx}" data-start="${segment.start}" data-end="${segment.end}" onclick="seekToTranscriptTime(${segment.start})" title="Click to play from ${segment.start.toFixed(2)}s"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s &mdash; ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`,
-          )
+        // 1. AI Executive Summary Card (from Gemini)
+        let summaryCard = "";
+        if (data.summary) {
+          const tagsHtml = (data.tags || [])
+            .map((t) => `<span class="tag-pill">🏷️ ${escape(t)}</span>`)
+            .join("");
+          const langsHtml = Object.entries(data.language_breakdown || {})
+            .map(([l, p]) => `<span class="lang-pill">🗣️ <b>${escape(l)}</b>: ${escape(String(p))}</span>`)
+            .join("");
+
+          summaryCard = `
+            <div class="ai-summary-card">
+              <div class="ai-summary-header">
+                <div class="ai-summary-title">✨ Gemini Multilingual Intelligence Report</div>
+                <small class="mono" style="color:var(--muted);">${escape(data.backend || "Sarvam + Gemini")}</small>
+              </div>
+              <div class="ai-summary-text">${escape(data.summary)}</div>
+              <div class="ai-summary-meta">
+                ${langsHtml}
+                ${tagsHtml}
+              </div>
+            </div>
+          `;
+        }
+
+        // 2. Multilingual Dialogue Rows
+        const rows = (data.segments || [])
+          .map((segment, idx) => {
+            const isCs = segment.is_code_switched;
+            const langClass = isCs ? "lang-badge code-switch" : "lang-badge";
+            const langIcon = isCs ? "🔀" : "🌐";
+            const langLabel = segment.lang || (isCs ? "Code-switched" : "Detected");
+
+            const transHtml = (segment.translation && segment.translation.trim() !== segment.text.trim())
+              ? `<div class="translation-box"><span class="translation-label">English Translation</span><span>"${escape(segment.translation)}"</span></div>`
+              : "";
+
+            return `
+              <div class="transcript-row" id="transcript-row-${idx}" data-start="${segment.start}" data-end="${segment.end}" onclick="seekToTranscriptTime(${segment.start})" title="Click to play from ${segment.start.toFixed(2)}s">
+                <div>
+                  <div class="speaker-name">${escape(segment.speaker)}</div>
+                  <div class="time">${segment.start.toFixed(2)}s &mdash; ${segment.end.toFixed(2)}s</div>
+                </div>
+                <div>
+                  <span class="${langClass}" title="${isCs ? 'Code-switching detected' : 'Detected language'}">${langIcon} ${escape(langLabel)}</span>
+                </div>
+                <div class="text-col">
+                  <div class="text-primary">${escape(segment.text)}</div>
+                  ${transHtml}
+                </div>
+              </div>
+            `;
+          })
           .join("");
-        return `<div class="transcript-list">${rows || '<div class="skip">Sarvam returned no transcript segments.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+
+        return `${summaryCard}<div class="transcript-list">${rows || '<div class="skip">No transcript segments available.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
 
       function escape(value) {
@@ -1495,9 +1648,20 @@
                 textHtml = escape(s.text);
               }
 
+              const isCs = s.is_code_switched;
+              const langBadge = s.lang
+                ? `<span class="sub-lang-badge">${isCs ? "🔀 " : ""}${escape(s.lang)}</span>`
+                : "";
+              const transHtml =
+                s.translation && s.translation.trim() !== s.text.trim()
+                  ? `<div class="sub-translation">↳ <i>"${escape(s.translation)}"</i></div>`
+                  : "";
+
               return `<div class="sub-item">
               <span class="sub-speaker-badge" style="background:${color}">${escape(s.speaker)}</span>
+              ${langBadge}
               <span class="sub-text">${textHtml}</span>
+              ${transHtml}
             </div>`;
             })
             .join("");
@@ -1748,15 +1912,21 @@
           }
 
           go(3);
-          progress(82, "Requesting transcription…");
-          message("asrStatus", "Sending speaker tracks to Sarvam AI…");
+          progress(82, "Transcribing & analyzing multilingual speech…");
+          message("asrStatus", "Transcribing speaker tracks with Sarvam AI & synthesizing multilingual intelligence with Gemini…");
           const asr = await post("/api/asr", { job_id: job });
           $("segmentCount").textContent = asr.segments.length;
+          if ($("detectedLangsCount")) {
+            const count = (asr.languages && asr.languages.length)
+              ? asr.languages.length
+              : (new Set(asr.segments.map((s) => s.lang).filter((l) => l && l !== "Unknown"))).size || 1;
+            $("detectedLangsCount").textContent = count;
+          }
           $("asrResult").innerHTML = transcript(asr);
           setVizSubtitles(asr.segments);
           message(
             "asrStatus",
-            asr.notes.length ? asr.notes.join(" ") : "Sarvam transcript ready.",
+            asr.notes.length ? asr.notes.join(" ") : "Multilingual transcript & AI report ready.",
           );
           maxStage = 4;
           progress(100, "Pipeline complete");
@@ -1800,6 +1970,7 @@
         $("speakers").innerHTML = "";
         $("asrResult").innerHTML = "";
         $("segmentCount").textContent = "--";
+        if ($("detectedLangsCount")) $("detectedLangsCount").textContent = "--";
         $("speakerCount").textContent = "--";
         $("vizRows").innerHTML = "";
         $("speakerDownloads").innerHTML = "";
