@@ -51,7 +51,7 @@ asr:
 
 postprocessing:
   backend: gemini
-  model: gemini-2.5-flash
+  model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434
   structured_output: true

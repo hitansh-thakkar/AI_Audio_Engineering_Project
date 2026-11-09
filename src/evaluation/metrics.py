@@ -118,3 +118,43 @@ def cer(reference: str, hypothesis: str, lang: str | None = None) -> float:
     if not ref:
         return 0.0 if not hyp else 1.0
     return round(float(jiwer.cer(ref, hyp)), 4)
+
+
+# -------------------------------------------------------- Summary / LLM
+def rouge_l(reference: str, hypothesis: str) -> float:
+    """Compute ROUGE-L F1 measure between reference and generated summary."""
+    if not reference or not hypothesis:
+        return 0.0
+    try:
+        from rouge_score import rouge_scorer
+        scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
+        scores = scorer.score(reference, hypothesis)
+        return round(float(scores["rougeL"].fmeasure), 4)
+    except Exception:
+        ref_tok = reference.lower().split()
+        hyp_tok = hypothesis.lower().split()
+        m, n = len(ref_tok), len(hyp_tok)
+        if m == 0 or n == 0:
+            return 0.0
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        for i in range(m):
+            for j in range(n):
+                if ref_tok[i] == hyp_tok[j]:
+                    dp[i + 1][j + 1] = dp[i][j] + 1
+                else:
+                    dp[i + 1][j + 1] = max(dp[i + 1][j], dp[i][j + 1])
+        lcs = dp[m][n]
+        prec = lcs / n
+        rec = lcs / m
+        f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
+        return round(f1, 4)
+
+
+def factual_consistency(summary: str, transcript: str) -> float:
+    """Measure factual grounding rate of summary against source transcript."""
+    from ..postprocessing.guardrails import check_factual_consistency
+    from ..types import Transcript, TranscriptSegment
+
+    t = Transcript(segments=[TranscriptSegment(0.0, 1.0, "SPEAKER_00", transcript)])
+    score, _, _ = check_factual_consistency(summary, t)
+    return score

@@ -89,8 +89,8 @@ This stage only **cleans and summarizes text** that ASR already produced — it 
 
 | Choice | ID (`postprocessing.model`) | Why |
 | --- | --- | --- |
-| **Default** | `gemini-2.0-flash` | Fast, free-tier, strong multilingual incl. Hindi/Indic + code-switch. Ample for cleanup/summarization. |
-| Alt (quality) | `gemini-2.5-flash` / `gemini-2.5-pro` | Higher quality if the free-tier limits allow; verify current free-tier availability and rate limits. |
+| **Default** | `gemini-3.8-flash` | Fast, free-tier, strong multilingual incl. Hindi/Indic + code-switch. Ample for cleanup/summarization. |
+| Alt (quality) | Configure a currently available Gemini Flash/Pro model | Model availability and free-tier limits change; verify the model in AI Studio before use. |
 
 - **Key:** free from <https://aistudio.google.com/apikey>; read from `GEMINI_API_KEY` (env), never commit. Client: `google-genai`.
 - **Verify before wiring:** model tags and free-tier rate limits change — re-check AI Studio. Handle rate-limit / quota errors as a graceful degradation (fall back to a minimal report, note it in the manifest).
@@ -138,7 +138,7 @@ models:
   separation:   speechbrain/sepformer-wsj02mix             # config-driven: whamr (noise) / 16 kHz / convtasnet
   asr:          large-v3                                   # faster-whisper CT2 (int8); Tara-CT2 for Hindi/Hinglish (post-midsem)
   align:        whisperx
-  llm:          gemini-2.5-flash                           # Gemini API free tier (default); optional local Ollama (post-midsem)
+  llm:          gemini-3.8-flash                           # Gemini API free tier (default); optional local Ollama (post-midsem)
 ```
 
 The acoustic stack is open-weights running locally; the LLM stage calls the Gemini API free tier by default (optional local Ollama for offline). The two credentials are both free: an HF token for pyannote's gated (not paid) licenses, and a Gemini API key.

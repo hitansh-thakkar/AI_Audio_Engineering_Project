@@ -59,7 +59,7 @@ asr:
 
 postprocessing:
   backend: gemini         # gemini (free API, default) | ollama (OPTIONAL local) | api (OPTIONAL PAID)
-  model: gemini-2.5-flash
+  model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434   # used only by the optional ollama backend
   structured_output: true

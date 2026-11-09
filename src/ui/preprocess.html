@@ -505,6 +505,76 @@
         gap: 8px;
         align-items: center;
       }
+      /* ── Guardrail Panel ─────────────────────────────────────────────── */
+      .guardrail-panel {
+        border: 1px solid var(--line);
+        border-left: 6px solid #94a3b8;
+        padding: 16px 20px;
+        margin: 0 0 20px;
+        background: #f9fafb;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      }
+      .guardrail-panel.passed    { border-left-color: #22c55e; background: #f0fdf4; }
+      .guardrail-panel.warnings  { border-left-color: #f59e0b; background: #fffbeb; }
+      .guardrail-panel.flagged   { border-left-color: #ef4444; background: #fef2f2; }
+      .guardrail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .guardrail-title {
+        font: 700 12px 'DM Mono', monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--dark);
+      }
+      .guardrail-badge {
+        font: 700 11px 'DM Mono', monospace;
+        padding: 3px 10px;
+        border-radius: 20px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .guardrail-badge.passed   { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+      .guardrail-badge.warnings { background: #fef9c3; color: #92400e; border: 1px solid #fcd34d; }
+      .guardrail-badge.flagged  { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+      .guardrail-score-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        overflow: hidden;
+        margin: 8px 0 4px;
+      }
+      .guardrail-score-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.5s ease;
+      }
+      .guardrail-score-fill.passed   { background: #22c55e; }
+      .guardrail-score-fill.warnings { background: #f59e0b; }
+      .guardrail-score-fill.flagged  { background: #ef4444; }
+      .guardrail-score-label {
+        font: 500 11px 'DM Mono', monospace;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .guardrail-hallucination-list {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .guardrail-hallucination-list li {
+        font-size: 0.82rem;
+        color: #991b1b;
+        padding: 4px 0 4px 18px;
+        border-left: 3px solid #fca5a5;
+        margin-bottom: 4px;
+        background: #fff5f5;
+        padding-left: 10px;
+      }
       .tag-pill {
         font: 500 11px 'DM Mono', monospace;
         background: #f1ede3;
@@ -1347,7 +1417,45 @@
           `;
         }
 
-        // 2. Multilingual Dialogue Rows
+        // 2. Guardrail Verification Panel
+        let guardrailPanel = "";
+        const guardrailStatus = data.guardrail_status || "";
+        if (guardrailStatus) {
+          const statusClass = guardrailStatus === "PASSED"
+            ? "passed"
+            : guardrailStatus === "PASSED_WITH_WARNINGS"
+              ? "warnings"
+              : "flagged";
+          const statusEmoji = guardrailStatus === "PASSED"
+            ? "✅"
+            : guardrailStatus === "PASSED_WITH_WARNINGS"
+              ? "⚠️"
+              : "🚨";
+          const scoreVal = typeof data.consistency_score === "number" ? data.consistency_score : 1.0;
+          const scorePct = Math.round(scoreVal * 100);
+          const hallucinations = data.hallucinations_detected || [];
+          const hallucinationsHtml = hallucinations.length
+            ? `<ul class="guardrail-hallucination-list">${hallucinations.map(h => `<li>${escape(h)}</li>`).join("")}</ul>`
+            : `<div style="font-size:0.82rem;color:#15803d;margin-top:6px;">✓ No hallucinations detected in generated summary.</div>`;
+          guardrailPanel = `
+            <div class="guardrail-panel ${statusClass}">
+              <div class="guardrail-header">
+                <span class="guardrail-title">🛡️ Factual Consistency Guardrail</span>
+                <span class="guardrail-badge ${statusClass}">${statusEmoji} ${escape(guardrailStatus.replace(/_/g, " "))}</span>
+              </div>
+              <div class="guardrail-score-bar">
+                <div class="guardrail-score-fill ${statusClass}" style="width:${scorePct}%"></div>
+              </div>
+              <div class="guardrail-score-label">
+                <span>Grounding Score</span>
+                <span>${scorePct}%</span>
+              </div>
+              ${hallucinationsHtml}
+            </div>
+          `;
+        }
+
+        // 3. Multilingual Dialogue Rows
         const rows = (data.segments || [])
           .map((segment, idx) => {
             const isCs = segment.is_code_switched;
@@ -1377,7 +1485,7 @@
           })
           .join("");
 
-        return `${summaryCard}<div class="transcript-list">${rows || '<div class="skip">No transcript segments available.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+        return `${summaryCard}${guardrailPanel}<div class="transcript-list">${rows || '<div class="skip">No transcript segments available.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
 
       function escape(value) {

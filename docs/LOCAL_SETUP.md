@@ -46,7 +46,7 @@ pip install -r requirements.txt
    ```bash
    export GEMINI_API_KEY=...    # Windows PowerShell: $env:GEMINI_API_KEY="..."
    ```
-3. The client (`google-genai`) is already in `requirements.txt`. `postprocessing.model` (`config/default.yaml`) selects the model (default `gemini-2.0-flash`). This stage makes a **cloud** call — the only non-local part of the pipeline.
+3. The client (`google-genai`) is already in `requirements.txt`. `postprocessing.model` (`config/default.yaml`) selects the model (default `gemini-3.8-flash`). This stage makes a **cloud** call — the only non-local part of the pipeline.
 
 **Optional — Ollama (fully offline, no cloud, no key):** set `postprocessing.backend: ollama` in the config, then:
 1. Install from <https://ollama.com/download> (Windows/macOS/Linux). It runs a local server at `http://localhost:11434`.

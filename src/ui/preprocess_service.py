@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import uuid
 from pathlib import Path
@@ -16,7 +17,7 @@ from ..config import load_config
 from ..diarization import Diarizer
 from ..diarization.embeddings import embed_segments
 from ..diarization.vad import energy_vad, window_segments
-from ..postprocessing.gemini import GeminiPostProcessor
+from ..postprocessing import create_postprocessor
 from ..preprocessing import Preprocessor
 from ..separation import Separator
 from ..separation.stitch import build_speaker_tracks
@@ -318,8 +319,8 @@ def run_asr(job_id: str, output_root: str | Path) -> dict[str, object]:
             notes.append("Using Gemini Multimodal Cloud Audio ASR for speech transcription")
             transcript = gemini_asr.run(clip, diarization, separated, notes)
 
-    # Multilingual & Semantic Post-Processing via Gemini
-    post = GeminiPostProcessor(cfg.postprocessing)
+    # Multilingual & Semantic Post-Processing via factory (Gemini / Ollama / Stub)
+    post = create_postprocessor(cfg.postprocessing)
     post.load()
     report = post.run(transcript, notes)
 
@@ -349,6 +350,9 @@ def run_asr(job_id: str, output_root: str | Path) -> dict[str, object]:
         "tags": report.tags,
         "languages": report.languages,
         "language_breakdown": report.language_breakdown,
+        "consistency_score": round(float(report.consistency_score), 3),
+        "guardrail_status": report.guardrail_status,
+        "hallucinations_detected": list(report.hallucinations_detected),
         "segments": segments,
         "notes": notes,
     }
@@ -358,6 +362,9 @@ def run_asr(job_id: str, output_root: str | Path) -> dict[str, object]:
         "tags": report.tags,
         "languages": report.languages,
         "language_breakdown": report.language_breakdown,
+        "consistency_score": round(float(report.consistency_score), 3),
+        "guardrail_status": report.guardrail_status,
+        "hallucinations_detected": list(report.hallucinations_detected),
         "dialogue": segments,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     return payload

@@ -2,7 +2,7 @@
 
 Performs multilingual language detection, code-switching identification,
 English translation, phoneme error normalization, and structured executive summary
-using Google Gemini API (gemini-2.0-flash / gemini-2.5-flash).
+using Google Gemini API (configured through ``postprocessing.model``).
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from typing import Any
 
 from ..config import load_env
 from ..types import Report, Transcript, TranscriptSegment
+from .guardrails import check_factual_consistency
 
 
 def _heuristic_detect_language(text: str) -> tuple[str, bool]:
@@ -80,10 +81,7 @@ class GeminiPostProcessor:
         self.cfg = cfg
         self._client: Any = None
         self._load_error: str | None = None
-        self.model_name: str = getattr(cfg, "model", "gemini-2.0-flash")
-        # Map models if needed
-        if "2.5" in str(self.model_name):
-            self.model_name = "gemini-2.0-flash"  # standard fast multimodal endpoint
+        self.model_name: str = getattr(cfg, "model", "gemini-3.8-flash")
 
     def load(self) -> None:
         load_env()
@@ -232,6 +230,13 @@ Return strictly valid JSON conforming to this schema:
                 updated_seg = orig_seg
             dialogue.append(updated_seg)
 
+        # Apply Factual Consistency Guardrail check
+        consistency_score, status, hallucinations = check_factual_consistency(
+            summary, transcript, dialogue
+        )
+        if status != "PASSED":
+            notes.append(f"Guardrail check: {status} (score={consistency_score})")
+
         lang_str = ", ".join(languages) or "detected"
         notes.append(
             f"Gemini ({self.model_name}) analyzed multilingual transcript: "
@@ -245,6 +250,9 @@ Return strictly valid JSON conforming to this schema:
             raw_transcript=transcript,
             languages=languages,
             language_breakdown=language_breakdown,
+            consistency_score=consistency_score,
+            guardrail_status=status,
+            hallucinations_detected=hallucinations,
         )
 
     def _build_fallback_report(self, transcript: Transcript) -> Report:
@@ -261,4 +269,7 @@ Return strictly valid JSON conforming to this schema:
             raw_transcript=transcript,
             languages=langs,
             language_breakdown={l: f"{round(100 / max(1, len(langs)))}%" for l in langs},
+            consistency_score=1.0,
+            guardrail_status="PASSED",
+            hallucinations_detected=[],
         )

@@ -98,6 +98,9 @@ class Report:
     raw_transcript: Transcript
     languages: list[str] = field(default_factory=list)
     language_breakdown: dict[str, str] = field(default_factory=dict)
+    consistency_score: float = 1.0       # Factual consistency guardrail score [0..1]
+    guardrail_status: str = "PASSED"     # "PASSED" | "FLAGGED_UNGROUNDED" | "UNVERIFIED"
+    hallucinations_detected: list[str] = field(default_factory=list)
 
 
 @dataclass

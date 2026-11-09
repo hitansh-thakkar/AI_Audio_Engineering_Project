@@ -54,6 +54,18 @@ def test_gemini_postprocessor_offline_fallback():
     assert any("heuristic" in n.lower() for n in notes)
 
 
+def test_gemini_model_name_is_not_downgraded():
+    cfg = OmegaConf.create({
+        "backend": "gemini",
+        "model": "gemini-3.8-flash",
+        "api_key_env": "NON_EXISTENT_KEY",
+    })
+
+    post = GeminiPostProcessor(cfg)
+
+    assert post.model_name == "gemini-3.8-flash"
+
+
 def test_gemini_postprocessor_with_mocked_gemini_api():
     cfg = OmegaConf.create({
         "backend": "gemini",

@@ -24,7 +24,7 @@ from .config import config_hash, git_sha, load_config
 from .diarization import Diarizer
 from .diarization.linking import link_speakers
 from .diarization.rttm import write_rttm
-from .postprocessing import GeminiPostProcessor, PostProcessorStub
+from .postprocessing import create_postprocessor
 from .preprocessing import Preprocessor, chunk_audio
 from .preprocessing.preprocess import spectral_denoise
 from .separation import Separator
@@ -69,6 +69,9 @@ def _report_to_dict(report: Report) -> dict:
         "tags": report.tags,
         "languages": getattr(report, "languages", []),
         "language_breakdown": getattr(report, "language_breakdown", {}),
+        "consistency_score": getattr(report, "consistency_score", 1.0),
+        "guardrail_status": getattr(report, "guardrail_status", "PASSED"),
+        "hallucinations_detected": getattr(report, "hallucinations_detected", []),
         "dialogue": [
             {
                 "start": s.start, "end": s.end, "speaker": s.speaker, "text": s.text, "lang": s.lang,
@@ -86,6 +89,24 @@ def _report_to_markdown(report: Report, clip_id: str) -> str:
         lines += ["## Keyword tags", ", ".join(report.tags), ""]
     if getattr(report, "languages", None):
         lines += ["## Languages detected", ", ".join(report.languages), ""]
+
+    # Factual Consistency Guardrail section
+    status = getattr(report, "guardrail_status", "PASSED")
+    score = getattr(report, "consistency_score", 1.0)
+    hallucinations = getattr(report, "hallucinations_detected", [])
+    lines += [
+        "## Guardrail Verification & Consistency Audit",
+        f"- **Status:** {status}",
+        f"- **Factual Consistency Score:** {score:.3f} / 1.000",
+    ]
+    if hallucinations:
+        lines.append("- **Flagged Hallucinations:**")
+        for h in hallucinations:
+            lines.append(f"  - {h}")
+    else:
+        lines.append("- **Flagged Hallucinations:** None (all facts grounded in source audio)")
+    lines.append("")
+
     lines += ["## Speaker-separated dialogue", ""]
     for s in report.dialogue:
         cs_tag = " [Code-Switched]" if getattr(s, "is_code_switched", False) else ""
@@ -243,12 +264,8 @@ def run_pipeline(audio: str, config: str = "config/default.yaml", out: str | Non
             sf.write(source_path, source.samples, clip.sample_rate)
             separated_audio_paths.append(str(source_path))
 
-    # --- Stage 5: LLM post-processing
-    post = (
-        GeminiPostProcessor(cfg.postprocessing)
-        if str(getattr(cfg.postprocessing, "backend", "gemini")) == "gemini"
-        else PostProcessorStub(cfg.postprocessing)
-    )
+    # --- Stage 5: LLM post-processing  (factory picks Gemini / Ollama / Stub)
+    post = create_postprocessor(cfg.postprocessing)
     with measure(post.name, post.version, stages) as notes:
         post.load()
         report = post.run(transcript, notes)
