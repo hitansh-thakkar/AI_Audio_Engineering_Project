@@ -25,8 +25,8 @@ def _extract_key_terms(text: str) -> set[str]:
         "across", "after", "before", "each", "both", "some", "other", "than", "then",
         "also", "does", "done", "will", "would", "could", "should", "said", "spoke",
         "speaker", "speakers", "turn", "turns", "dialogue", "conversation", "discussed",
-        "discussed", "stated", "summary", "report", "recorded", "speech", "audio",
-        "hai", "hain", "kya", "aur", "bhi", "tha", "thi", "the", "aap", "hum", "yeh", "woh",
+        "stated", "summary", "report", "recorded", "speech", "audio",
+        "hai", "hain", "kya", "aur", "bhi", "tha", "thi", "aap", "hum", "yeh", "woh",
     }
     tokens = re.findall(r"\b[a-zA-Z\u0900-\u0D7F]{3,}\b", text.lower())
     return {t for t in tokens if t not in stops}

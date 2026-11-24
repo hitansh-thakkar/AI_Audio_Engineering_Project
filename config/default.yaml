@@ -22,15 +22,15 @@ preprocessing:
 
 diarization:
   source: real            # real | oracle   (oracle loads ground-truth RTTM — for the ablation)
-  backend: precision2     # precision2 (pyannote.ai cloud, best quality; needs PYANNOTE_API_KEY)
-                          #   falls back to community1 automatically when key is absent or API fails
-                          # community1 (free, local HF model) | legacy31 (free, local)
+  backend: community1     # community1 (free, local: energy VAD -> embeddings -> clustering below) | legacy31
+                          # precision2 = OPTIONAL PAID pyannote.ai cloud (PYANNOTE_API_KEY). Benchmarked on the
+                          #   code-switch set it was no better (DER 64%) than local ecapa+spectral (51%).
   api_key_env: PYANNOTE_API_KEY   # env var name that holds the pyannote.ai API key
   model: precision-2      # pyannote.ai model name sent in the POST /diarize body
   clustering: spectral    # REQUIRED (proposal M2): spectral | gmm = hand-applied clustering of embeddings | builtin = pyannote end-to-end
   overlap_detector: none  # none | pyannote (gated-but-free model → overlap regions for separation; needs HF_TOKEN + accepted licence)
   emit_timeline_json: true  # REQUIRED M2 deliverable: time->speaker timeline JSON alongside the RTTM
-  embedding: auto         # auto/mfcc = MFCC-stats (offline) | ecapa = SpeechBrain ECAPA (better)
+  embedding: ecapa        # ecapa = SpeechBrain ECAPA (best in benchmark) | auto/mfcc = MFCC-stats (offline, lighter)
   vad_top_db: 30          # energy-VAD silence threshold (dB below peak)
   window_seconds: 1.5     # embedding window length over VAD regions
   window_hop: 0.75        # embedding window hop
@@ -42,9 +42,10 @@ diarization:
 separation:
   mode: overlap           # none | overlap | everywhere   (everywhere = ablation, expected to hurt)
   backend: sepformer      # sepformer | resepformer | whamr | wham (SpeechBrain) | convtasnet (Asteroid, optional)
-  model: speechbrain/sepformer-wsj02mix   # swap for sepformer-whamr (noise-robust) or a 16 kHz checkpoint
+  model: speechbrain/sepformer-libri2mix  # benchmark best: 15.8 dB SI-SNRi on overlap regions (wsj02mix 6.6, whamr16k 3.2)
   model_sample_rate: 8000 # must match the checkpoint (set 16000 for a 16 kHz model); we resample in/out
   max_speakers_supported: 2   # documented hard limit (set to the model's #sources)
+  device: cpu             # cpu | cuda — torch device for the separator
   context_seconds: 3.0    # widen each overlap region by this margin so the separator has
                           # solo context to anchor each voice (bare-overlap slices separate poorly)
 
@@ -61,7 +62,9 @@ postprocessing:
   backend: gemini         # gemini (free API, default) | ollama (OPTIONAL local) | api (OPTIONAL PAID)
   model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
+  max_retries: 3          # backoff retries on free-tier 429/5xx before the heuristic fallback
   host: http://localhost:11434   # used only by the optional ollama backend
+  timeout_s: 60           # ollama request timeout; raise on low-VRAM machines (CPU offload)
   structured_output: true
   factual_consistency_check: true
   forbid_new_facts: true

@@ -44,7 +44,8 @@ Concrete, current model picks per stage — with the reasoning, the alternatives
 
 | Choice | ID | Why |
 | --- | --- | --- |
-| **Default (large)** | `speechbrain/sepformer-wsj02mix` | Strong transformer separator, 22.4 dB SI-SNRi on WSJ0-2Mix. |
+| **Default** | `speechbrain/sepformer-libri2mix` | Best on our overlap benchmark (15.8 dB SI-SNRi on overlap regions vs 6.6 for wsj02mix); see `outputs/reports/report_comparison.md`. |
+| Previous default | `speechbrain/sepformer-wsj02mix` | 22.4 dB on WSJ0-2Mix, but generalises poorly to our read-speech mixtures. |
 | Lighter variant | `speechbrain/resepformer-wsj02mix` | Smaller (18.6 dB) — useful for the latency/memory comparison. |
 | Baseline | Conv-TasNet (SpeechBrain / Asteroid) | The 2019 baseline the brief names; lighter, for comparison. |
 
@@ -135,7 +136,7 @@ models:
   denoise:      spectral                                   # dependency-light; demucs/dns optional
   embedding:    speechbrain/spkrec-ecapa-voxceleb          # ECAPA speaker embeddings (open) for clustering
   overlap:      pyannote/speaker-diarization-community-1   # overlap detector only (gated-but-free); clustering is hand-applied
-  separation:   speechbrain/sepformer-wsj02mix             # config-driven: whamr (noise) / 16 kHz / convtasnet
+  separation:   speechbrain/sepformer-libri2mix            # config-driven: whamr (noise) / 16 kHz / convtasnet
   asr:          large-v3                                   # faster-whisper CT2 (int8); Tara-CT2 for Hindi/Hinglish (post-midsem)
   align:        whisperx
   llm:          gemini-3.8-flash                           # Gemini API free tier (default); optional local Ollama (post-midsem)

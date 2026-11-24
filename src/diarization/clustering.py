@@ -8,6 +8,7 @@ No prior speaker templates. If the speaker count is unknown, it is estimated:
 This is the production clustering path; pyannote's end-to-end clusterer is kept only as an
 optional `builtin` comparison elsewhere.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -37,9 +38,12 @@ def _estimate_k(emb: np.ndarray, ks: list[int], seed: int) -> int:
     GMM's BIC, which badly over-/under-counts speakers). Auto-counting is still imperfect; set
     diarization.num_speakers (UI 'Number of speakers') when known for the cleanest result."""
     best_k, best_score = ks[0], -2.0
+    n = emb.shape[0]
     for k in ks:
+        if not 2 <= k <= n - 1:  # silhouette undefined here (e.g. 2 windows); keep ks[0]
+            continue
         labels = _fit_spectral(emb, k, seed)
-        if len(set(labels)) < 2:
+        if len(set(labels)) < 2 or len(set(labels)) > n - 1:
             continue
         score = silhouette_score(emb, labels, metric="cosine")
         if score > best_score:
@@ -49,14 +53,23 @@ def _estimate_k(emb: np.ndarray, ks: list[int], seed: int) -> int:
 
 def _fit_spectral(emb: np.ndarray, k: int, seed: int) -> np.ndarray:
     sc = SpectralClustering(
-        n_clusters=k, affinity="precomputed", assign_labels="kmeans", random_state=seed,
+        n_clusters=k,
+        affinity="precomputed",
+        assign_labels="kmeans",
+        random_state=seed,
     )
     return sc.fit_predict(_cosine_affinity(emb))
 
 
-def cluster_embeddings(emb: np.ndarray, method: str = "spectral", num_speakers=None,
-                       min_speakers=None, max_speakers=None, seed: int = 42,
-                       notes: list[str] | None = None) -> np.ndarray:
+def cluster_embeddings(
+    emb: np.ndarray,
+    method: str = "spectral",
+    num_speakers=None,
+    min_speakers=None,
+    max_speakers=None,
+    seed: int = 42,
+    notes: list[str] | None = None,
+) -> np.ndarray:
     """Cluster (n, d) embeddings into speaker labels (np.ndarray of ints)."""
     notes = [] if notes is None else notes
     n = emb.shape[0]

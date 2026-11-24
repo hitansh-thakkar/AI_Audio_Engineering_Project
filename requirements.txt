@@ -38,6 +38,11 @@ pyannote.metrics
 torchmetrics
 rouge-score
 bert-score                 # downloads a free model (e.g. roberta-large) from HF on first use
+# benchmark suite (src/evaluation/suite: reports, LLM grounding, preprocessing ablation)
+sentence-transformers      # LaBSE cross-lingual grounding for the LLM benchmark (free model)
+noisereduce                # preprocessing ablation baseline (stationary spectral gating)
+matplotlib                 # report charts
+pandas                     # report tables
 
 # UI (Streamlit app: `streamlit run app.py`)
 streamlit                  # pulls altair + pandas (used for waveforms + timeline table)

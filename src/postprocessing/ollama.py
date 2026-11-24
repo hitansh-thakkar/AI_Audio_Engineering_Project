@@ -138,7 +138,9 @@ Return strictly valid JSON conforming to this schema:
             method="POST",
         )
 
-        with urllib.request.urlopen(req, timeout=60.0) as resp:
+        # 7B Q4 models spill to CPU on 4 GB GPUs; a report can take >60 s there.
+        timeout = float(getattr(self.cfg, "timeout_s", 60.0))
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             res_data = json.loads(resp.read().decode("utf-8"))
             data = json.loads(res_data.get("response", "{}"))
 

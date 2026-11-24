@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from typing import Any
 
 from ..config import load_env
@@ -122,13 +123,22 @@ class GeminiPostProcessor:
             return self._build_fallback_report(transcript)
 
         # Call Gemini API for deep multilingual understanding and synthesis
-        try:
-            return self._call_gemini(transcript, notes)
-        except Exception as exc:
-            notes.append(
-                f"Gemini API call failed ({type(exc).__name__}: {exc}); falling back to heuristic tags"
-            )
-            return self._build_fallback_report(transcript)
+        # Free-tier 429/503 ("high demand") are transient: bounded backoff, then degrade gracefully.
+        retries = int(getattr(self.cfg, "max_retries", 3))
+        attempt = 0
+        while True:
+            try:
+                return self._call_gemini(transcript, notes)
+            except Exception as exc:
+                if getattr(exc, "code", None) in (429, 500, 503, 504) and attempt < retries:
+                    time.sleep(min(30.0, 4.0 * 2**attempt))
+                    attempt += 1
+                    continue
+                notes.append(
+                    f"Gemini API call failed after {attempt + 1} attempt(s) "
+                    f"({type(exc).__name__}: {exc}); falling back to heuristic tags"
+                )
+                return self._build_fallback_report(transcript)
 
     def _call_gemini(self, transcript: Transcript, notes: list[str]) -> Report:
         from google.genai import types

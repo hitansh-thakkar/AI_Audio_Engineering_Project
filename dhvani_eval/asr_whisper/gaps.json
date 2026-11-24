@@ -1,0 +1,12 @@
+{
+  "indicvoices": {},
+  "vaani": {
+    "gu": "only 3/20 usable in first 6000 rows",
+    "ml": "only 15/20 usable in first 6000 rows",
+    "ur": "only 0/20 usable in first 6000 rows",
+    "sa": "vaani has no config for sa",
+    "sd": "only 11/20 usable in first 1698 rows"
+  },
+  "nirantar": {},
+  "registers": {}
+}

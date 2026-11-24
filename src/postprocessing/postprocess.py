@@ -23,7 +23,8 @@ class PostProcessorStub:
 
     def run(self, transcript: Transcript, notes: list[str] | None = None) -> Report:
         notes = [] if notes is None else notes
-        notes.append(f"LLM post-processing is a stub; backend '{getattr(self.cfg, 'backend', 'stub')}' not called")
+        backend = getattr(self.cfg, "backend", "stub")
+        notes.append(f"LLM post-processing is a stub; backend '{backend}' not called")
         speakers = sorted({s.speaker for s in transcript.segments})
         summary = (
             f"[stub report] {len(transcript.segments)} speaker turns across "
