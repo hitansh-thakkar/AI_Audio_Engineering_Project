@@ -61,6 +61,10 @@ You need three things:
 
 Keep `data/` out of version control; document exact download + slice commands in a `data/README.md`.
 
+### ASR set: `dhvani_eval/asr_whisper/`
+
+A faster-whisper WER/CER set over the 14 Whisper-supported Indic languages, drawn from IndicVoices, Vaani and Nirantar (AIR-RS-DB has no transcripts). See `dhvani_eval/README.md`.
+
 ### Built set: `dhvani_eval/` (in this repo)
 
 `dhvani_eval/` is the concrete eval set, generated **entirely from the real IndicVoices audio**

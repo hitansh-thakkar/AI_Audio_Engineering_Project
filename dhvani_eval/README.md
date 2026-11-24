@@ -107,3 +107,42 @@ We do **not** synthesize this with TTS (that would compromise the benchmark with
 Derived from **AI4Bharat IndicVoices** (`ai4bharat/IndicVoices`, valid split) — see that
 dataset's license/terms before redistribution. Mixtures and slices inherit those terms.
 `dataset_info.json` records the source, seed, and the git SHA of the build.
+
+## `asr_whisper/` — faster-whisper ASR test set (14 Indic languages)
+
+Built by `python dhvani_eval/build_asr_whisper.py` (needs `HF_TOKEN`). The set covers the Indic
+languages in Whisper's vocabulary: `hi bn ta te mr gu kn ml pa ur as sa ne sd`. Odia and the
+other scheduled languages are absent from Whisper, so they are excluded. Every clip has a human
+reference transcript, is 1.5–30 s long, and is 16 kHz mono PCM-16. Selection is deterministic:
+the first N matching rows in stream order, at most 3 per speaker, deduplicated across corpora
+by speaker + text.
+
+| Corpus | Source | Per language |
+| --- | --- | --- |
+| IndicVoices | `ai4bharat/IndicVoices` `valid`, streamed | 20 × all 14 |
+| Vaani | `ARTPARK-IISc/Vaani`, transcribed rows only | up to 20 × 13 (no Sanskrit config); transcripts are sparse, gaps are listed in `summary.json` |
+| Nirantar | official `AUDIOS.tgz.aa` streamed, joined to the LIL manifests (`data/nirantar/LIL.tgz`) | 20 × all 14 |
+| registers | the existing `registers/` (English 40, Hindi–English code-switch 24), copied into `audio/registers/` | `register != "monolingual"` |
+| AIR-RS-DB | — | excluded: the corpus has no transcripts (only R/S labels) |
+
+Manifest rows (`asr_whisper/manifest.jsonl`, audio paths relative to `dhvani_eval/`) contain
+`id, corpus, language` (a Whisper code), `register, audio, duration, text` (the reference),
+`text_raw` (the verbatim text, or Vaani's text with its `{gloss}`/`[tag]` markup), plus speaker
+and district metadata. Score `text` with the project's Indic normalizer (NFC +
+indic-nlp-library), never Whisper's default normalizer.
+
+```python
+from faster_whisper import WhisperModel
+import soundfile as sf
+m = WhisperModel("large-v3", device="cuda", compute_type="int8_float16")
+# pass a float32 array: faster-whisper 1.2.1's file decoder breaks on PyAV 19 (metadata_errors kwarg)
+y, _ = sf.read("dhvani_eval/" + row["audio"], dtype="float32")
+segs, info = m.transcribe(y, language=row["language"], beam_size=5)
+hyp = " ".join(s.text.strip() for s in segs)   # language=None to test Whisper's LID instead
+```
+
+**Caveats.** Every reference must be in its language's expected script (for example, Vaani's
+Urdu is Devanagari, so it is rejected), and each row records its `script`. **Sindhi** references
+are Devanagari (as shipped by IndicVoices and Nirantar), but Whisper writes Sindhi in Perso-Arabic,
+so transliterate before scoring or report `sd` separately. Whisper has very little training data
+for as/sa/sd/ne/pa, so expect very high WER there.

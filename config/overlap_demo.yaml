@@ -50,7 +50,7 @@ asr:
   normalizer: indic_script_safe
 
 postprocessing:
-  backend: stub           # demo focuses on separation; stub avoids a live LLM call
+  backend: gemini
   model: gemini-3.8-flash
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434

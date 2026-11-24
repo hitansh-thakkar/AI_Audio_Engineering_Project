@@ -28,10 +28,8 @@ from .separation_eval import evaluate as sep_evaluate
 
 
 def _diar_cfg(embedding: str, clustering: str) -> DictConfig:
-    # Mirror the shipped default.yaml clustering recipe so the benchmark reflects what runs.
     return OmegaConf.create(dict(
         source="real", backend="community1", model="x", clustering=clustering,
-        count_method="silhouette", affinity="refined",
         overlap_detector="none", emit_timeline_json=True, embedding=embedding,
         num_speakers=None, min_speakers=None, max_speakers=None, rttm_dir=None))
 

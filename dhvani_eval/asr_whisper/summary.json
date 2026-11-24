@@ -1,0 +1,132 @@
+{
+  "name": "dhvani_eval/asr_whisper",
+  "purpose": "faster-whisper ASR WER/CER over Whisper-supported Indic languages (+ en / code-switch registers)",
+  "languages": [
+    "hi",
+    "bn",
+    "ta",
+    "te",
+    "mr",
+    "gu",
+    "kn",
+    "ml",
+    "pa",
+    "ur",
+    "as",
+    "sa",
+    "ne",
+    "sd"
+  ],
+  "params": {
+    "n": 20,
+    "min_dur": 1.5,
+    "max_dur": 30.0,
+    "per_speaker": 3,
+    "iv_scan": 1500,
+    "vaani_scan": 1500,
+    "nirantar_mb": 4000
+  },
+  "git_sha": "1c7845f0e7a9f8bd092a96eb62328cb29041151d",
+  "sample_rate": 16000,
+  "total_clips": 833,
+  "total_hours": 1.841,
+  "counts_language_x_corpus": {
+    "as": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "bn": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "en": {
+      "registers": 40
+    },
+    "gu": {
+      "indicvoices": 20,
+      "vaani": 3,
+      "nirantar": 20
+    },
+    "hi": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20,
+      "registers": 24
+    },
+    "kn": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "ml": {
+      "indicvoices": 20,
+      "vaani": 15,
+      "nirantar": 20
+    },
+    "mr": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "ne": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "pa": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "sa": {
+      "indicvoices": 20,
+      "nirantar": 20
+    },
+    "sd": {
+      "indicvoices": 20,
+      "vaani": 11,
+      "nirantar": 20
+    },
+    "ta": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "te": {
+      "indicvoices": 20,
+      "vaani": 20,
+      "nirantar": 20
+    },
+    "ur": {
+      "indicvoices": 20,
+      "nirantar": 20
+    }
+  },
+  "dataset_revisions": {
+    "ai4bharat/IndicVoices": "c96f9088f138cf89d419da7e8e643e1f05c00a87",
+    "ARTPARK-IISc/Vaani": "9e6ed4f94f7060e633cbc500480623ae7521522c",
+    "nirantar": "https://objectstore.e2enetworks.net/nirantar/AUDIOS.tgz.aa + https://objectstore.e2enetworks.net/nirantar/LIL.tgz"
+  },
+  "gaps": {
+    "indicvoices": {},
+    "vaani": {
+      "gu": "only 3/20 usable in first 6000 rows",
+      "ml": "only 15/20 usable in first 6000 rows",
+      "ur": "only 0/20 usable in first 6000 rows",
+      "sa": "vaani has no config for sa",
+      "sd": "only 11/20 usable in first 1698 rows"
+    },
+    "nirantar": {},
+    "registers": {}
+  },
+  "known_issues": {
+    "sd": "references are Devanagari; Whisper outputs Sindhi in Perso-Arabic -> transliterate hypotheses (or references) before WER/CER, or report sd separately",
+    "low_resource": "Whisper's training data for as/sa/sd/ne/pa is tiny; expect very high WER"
+  },
+  "excluded": {
+    "air_rs_db": "no transcripts (only read/spontaneous labels) — cannot produce WER/CER",
+    "dhvani_eval/nirantar": "existing slice is 0.4-0.6 s chunks, too short for ASR; re-fetched here"
+  }
+}

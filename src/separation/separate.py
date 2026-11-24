@@ -124,7 +124,7 @@ class Separator:
         return SepformerSeparation.from_hparams(
             source=str(self.cfg.model),
             savedir=str(self._model_savedir()),
-            run_opts={"device": "cpu"},
+            run_opts={"device": str(getattr(self.cfg, "device", "cpu"))},
             local_strategy=LocalStrategy.COPY,
         )
 
@@ -208,7 +208,10 @@ class Separator:
         model_input = librosa.resample(seg.astype(np.float32), orig_sr=sr, target_sr=model_sr)
         import torch
 
-        estimated = self._model.separate_batch(torch.from_numpy(model_input).unsqueeze(0))
+        device = str(getattr(self.cfg, "device", "cpu"))
+        with torch.inference_mode():
+            estimated = self._model.separate_batch(
+                torch.from_numpy(model_input).unsqueeze(0).to(device))
 
         estimated = estimated.detach().cpu().numpy()
         if estimated.ndim == 3:

@@ -181,11 +181,11 @@
       }
       .slides {
         display: flex;
-        width: 600%;
+        width: 500%;
         transition: transform 0.65s cubic-bezier(0.22, 0.8, 0.25, 1);
       }
       .slide {
-        width: calc(100% / 6);
+        width: 20%;
         min-height: 450px;
         padding: 34px;
       }
@@ -467,25 +467,167 @@
       }
       .transcript-list {
         display: grid;
-        gap: 9px;
+        gap: 12px;
         margin-top: 20px;
+      }
+      .ai-summary-card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--mint);
+        padding: 18px 22px;
+        margin: 18px 0 24px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      }
+      .ai-summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .ai-summary-title {
+        font: 700 13px 'DM Mono', monospace;
+        letter-spacing: 0.06em;
+        color: var(--dark);
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ai-summary-text {
+        font-size: 0.96rem;
+        line-height: 1.65;
+        color: var(--ink);
+        margin: 0 0 14px;
+      }
+      .ai-summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      /* ── Guardrail Panel ─────────────────────────────────────────────── */
+      .guardrail-panel {
+        border: 1px solid var(--line);
+        border-left: 6px solid #94a3b8;
+        padding: 16px 20px;
+        margin: 0 0 20px;
+        background: #f9fafb;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      }
+      .guardrail-panel.passed    { border-left-color: #22c55e; background: #f0fdf4; }
+      .guardrail-panel.warnings  { border-left-color: #f59e0b; background: #fffbeb; }
+      .guardrail-panel.flagged   { border-left-color: #ef4444; background: #fef2f2; }
+      .guardrail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .guardrail-title {
+        font: 700 12px 'DM Mono', monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--dark);
+      }
+      .guardrail-badge {
+        font: 700 11px 'DM Mono', monospace;
+        padding: 3px 10px;
+        border-radius: 20px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .guardrail-badge.passed   { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+      .guardrail-badge.warnings { background: #fef9c3; color: #92400e; border: 1px solid #fcd34d; }
+      .guardrail-badge.flagged  { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+      .guardrail-score-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        overflow: hidden;
+        margin: 8px 0 4px;
+      }
+      .guardrail-score-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.5s ease;
+      }
+      .guardrail-score-fill.passed   { background: #22c55e; }
+      .guardrail-score-fill.warnings { background: #f59e0b; }
+      .guardrail-score-fill.flagged  { background: #ef4444; }
+      .guardrail-score-label {
+        font: 500 11px 'DM Mono', monospace;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .guardrail-hallucination-list {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .guardrail-hallucination-list li {
+        font-size: 0.82rem;
+        color: #991b1b;
+        padding: 4px 0 4px 18px;
+        border-left: 3px solid #fca5a5;
+        margin-bottom: 4px;
+        background: #fff5f5;
+        padding-left: 10px;
+      }
+      .tag-pill {
+        font: 500 11px 'DM Mono', monospace;
+        background: #f1ede3;
+        color: var(--ink);
+        padding: 3px 9px;
+        border-radius: 12px;
+        border: 1px solid #ded6c7;
+      }
+      .lang-pill {
+        font: 600 11px 'DM Mono', monospace;
+        background: #edf5f1;
+        color: #1b533e;
+        padding: 3px 9px;
+        border-radius: 12px;
+        border: 1px solid #c8e2d4;
+      }
+      .lang-badge {
+        display: inline-block;
+        font: 500 10px 'DM Mono', monospace;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: #e5eee9;
+        color: #275240;
+        border: 1px solid #c2dbcd;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        vertical-align: middle;
+      }
+      .lang-badge.code-switch {
+        background: #fff3db;
+        color: #7b4f00;
+        border-color: #eed090;
+        font-weight: 600;
       }
       .transcript-row {
         display: grid;
-        grid-template-columns: 108px 118px 1fr;
-        gap: 12px;
+        grid-template-columns: 108px 135px 1fr;
+        gap: 14px;
         align-items: start;
         border-left: 4px solid var(--mint);
-        background: #f3efe7;
-        padding: 12px;
+        background: #fbf9f4;
+        padding: 14px;
+        border-radius: 2px;
+        transition: all 0.2s ease;
       }
       .transcript-row:nth-child(2n) {
         border-color: var(--coral);
       }
       .transcript-row .speaker-name {
         font:
-          500 11px "DM Mono",
+          600 11px "DM Mono",
           monospace;
+        color: var(--dark);
       }
       .transcript-row .time {
         color: var(--muted);
@@ -493,8 +635,42 @@
           500 11px "DM Mono",
           monospace;
       }
-      .transcript-row .text {
+      .transcript-row .text-col {
+        display: grid;
+        gap: 6px;
+      }
+      .transcript-row .text-primary {
+        font-size: 0.95rem;
         line-height: 1.5;
+        color: var(--ink);
+      }
+      .transcript-row .translation-box {
+        background: #f5f2ea;
+        border-left: 3px solid var(--yellow);
+        padding: 6px 10px;
+        border-radius: 3px;
+        font-size: 0.88rem;
+        color: #4b4840;
+        line-height: 1.45;
+      }
+      .transcript-row .translation-label {
+        font: 600 10px 'DM Mono', monospace;
+        text-transform: uppercase;
+        color: #8c7340;
+        margin-right: 6px;
+      }
+      .sub-lang-badge {
+        font: 600 10px 'DM Mono', monospace;
+        background: #243337;
+        color: #ffffff;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin-right: 6px;
+      }
+      .sub-translation {
+        margin-top: 4px;
+        font-size: 0.82rem;
+        color: #ffe6aa;
       }
       .source-grid {
         display: grid;
@@ -511,6 +687,189 @@
         display: block;
         color: var(--muted);
         margin-bottom: 9px;
+      }
+      /* ── matplotlib plot panels ───────────────────────────────────────── */
+      .plot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+      }
+      .plot-card {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fbfaf5;
+      }
+      .plot-label {
+        padding: 7px 12px;
+        font-size: 0.72rem;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+        background: #f3efe7;
+      }
+      .plot-img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      /* ── multi-speaker waveform visualiser ────────────────────────────── */
+      .viz-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .viz-label {
+        width: 98px;
+        flex-shrink: 0;
+        font:
+          600 11px "DM Mono",
+          monospace;
+        letter-spacing: 0.04em;
+        padding: 5px 9px;
+        border-radius: 4px;
+        text-align: center;
+        color: #fff;
+        /* color set inline per speaker */
+      }
+      .viz-canvas-wrap {
+        flex: 1;
+        position: relative;
+        height: 64px;
+        background: #1a1f21;
+        border-radius: 4px;
+        overflow: hidden;
+        cursor: pointer;
+      }
+      .viz-canvas-wrap canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      /* the playback cursor line shared by all rows */
+      .viz-cursor {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.85);
+        pointer-events: none;
+        transform: translateX(-1px);
+        will-change: left;
+        box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+        z-index: 2;
+      }
+      /* ── Stage 04 Live Subtitles ────────────────────────────────────── */
+      .subtitle-box {
+        margin: 14px 0 16px;
+        background: #172225;
+        color: #f2eee5;
+        border-radius: 8px;
+        padding: 14px 18px;
+        box-shadow: 0 4px 16px rgba(23, 34, 37, 0.16);
+        border: 1px solid #2a3a3d;
+        transition: all 0.2s ease;
+      }
+      .subtitle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 6px;
+      }
+      .sub-kicker {
+        font:
+          600 10px "DM Mono",
+          monospace;
+        letter-spacing: 0.08em;
+        color: var(--coral);
+        text-transform: uppercase;
+      }
+      .sub-time {
+        font:
+          500 11px "DM Mono",
+          monospace;
+        color: var(--yellow);
+      }
+      .subtitle-content {
+        min-height: 44px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        justify-content: center;
+      }
+      .sub-item {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .sub-speaker-badge {
+        font:
+          600 10px "DM Mono",
+          monospace;
+        padding: 3px 8px;
+        border-radius: 4px;
+        color: #fff;
+        white-space: nowrap;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+      }
+      .sub-text {
+        font-size: 1.05rem;
+        line-height: 1.45;
+        color: #ffffff;
+        font-weight: 500;
+      }
+      .sub-word {
+        display: inline-block;
+        padding: 0 2px;
+        transition: all 0.1s ease;
+      }
+      .sub-word.active {
+        color: var(--yellow);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        transform: scale(1.05);
+      }
+      .sub-word.past {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .sub-word.future {
+        color: rgba(255, 255, 255, 0.45);
+      }
+      .sub-idle {
+        font-size: 0.92rem;
+        color: rgba(255, 255, 255, 0.45);
+        font-style: italic;
+      }
+      .viz-row {
+        transition: transform 0.15s ease;
+      }
+      .viz-row.is-speaking .viz-canvas-wrap {
+        box-shadow:
+          0 0 0 2px var(--yellow),
+          0 0 12px rgba(232, 188, 104, 0.35);
+      }
+      .viz-row.is-speaking .viz-label {
+        filter: brightness(1.15);
+        font-weight: 700;
+      }
+      .transcript-row {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .transcript-row:hover {
+        background: #fbf7ee;
+        transform: translateX(3px);
+      }
+      .transcript-row.active {
+        background: #fff8eb !important;
+        border-left: 6px solid var(--yellow) !important;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
       }
       @media (max-width: 760px) {
         main {
@@ -677,9 +1036,10 @@
                 <div class="kicker">Stage 04 / listen and download</div>
                 <h2>Meet the individual tracks.</h2>
                 <p class="lede">
-                  Each speaker gets a full-length WAV. Solo speech stays in
-                  place; merged intervals use the assigned separated source when
-                  available.
+                  Each speaker gets a full-length WAV with their turns
+                  highlighted. Press play &mdash; a cursor sweeps every row
+                  simultaneously so you can see exactly who is speaking at any
+                  moment.
                 </p>
                 <div class="button-row">
                   <button class="secondary" id="reset">
@@ -698,20 +1058,132 @@
                       <b>WAV</b><span>download format</span>
                     </div>
                   </div>
+                  <p class="lede" style="margin-top: 10px; font-size: 0.82rem">
+                    Highlighted blocks = speaker turns.<br />
+                    Grey waveform = silence / other speaker.
+                  </p>
                 </div>
               </div>
             </div>
+
+            <!-- ── interactive multi-speaker waveform visualiser ─────────── -->
+            <div id="waveViz" style="display: none; margin-top: 4px">
+              <div
+                style="
+                  border-top: 1px solid var(--line);
+                  padding-top: 16px;
+                  margin-bottom: 14px;
+                "
+              >
+                <div class="kicker" style="margin-bottom: 12px">
+                  Speaker segments
+                </div>
+                <!-- transport row -->
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <button
+                    id="playPauseBtn"
+                    style="
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 50%;
+                      padding: 0;
+                      font-size: 1.15rem;
+                      line-height: 1;
+                      flex-shrink: 0;
+                    "
+                    aria-label="Play / Pause"
+                  >
+                    &#9654;
+                  </button>
+                  <div
+                    id="seekBar"
+                    style="
+                      flex: 1;
+                      height: 6px;
+                      border-radius: 6px;
+                      background: #e0dbd0;
+                      cursor: pointer;
+                      position: relative;
+                    "
+                  >
+                    <div
+                      id="seekFill"
+                      style="
+                        position: absolute;
+                        inset: 0;
+                        right: auto;
+                        width: 0%;
+                        border-radius: inherit;
+                        background: linear-gradient(
+                          90deg,
+                          var(--coral),
+                          var(--yellow),
+                          var(--mint)
+                        );
+                        pointer-events: none;
+                        transition: width 0.08s linear;
+                      "
+                    ></div>
+                  </div>
+                  <span
+                    id="timeDisplay"
+                    style="
+                      font:
+                        500 11px &quot;DM Mono&quot;,
+                        monospace;
+                      color: var(--muted);
+                      white-space: nowrap;
+                      min-width: 88px;
+                      text-align: right;
+                    "
+                  >
+                    0:00 / 0:00</span
+                  >
+                </div>
+
+                <!-- live subtitle card -->
+                <div class="subtitle-box" id="vizSubtitleBox">
+                  <div class="subtitle-header">
+                    <span class="sub-kicker"
+                      >Live Subtitles &middot; Timestamp Synced</span
+                    >
+                    <span class="sub-time" id="subTimestamp">0:00.00</span>
+                  </div>
+                  <div class="subtitle-content" id="vizSubtitles">
+                    <span class="sub-idle"
+                      >&#9654; Press play or seek anywhere on the waveform to
+                      track spoken words</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <!-- waveform rows injected here -->
+              <div id="vizRows"></div>
+              <!-- download buttons injected here -->
+              <div
+                id="speakerDownloads"
+                style="
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 10px;
+                  margin-top: 18px;
+                  padding-top: 14px;
+                  border-top: 1px solid var(--line);
+                "
+              ></div>
+            </div>
+
+            <!-- legacy plain speaker grid (shown only when waveform_data unavailable) -->
             <div class="speaker-grid" id="speakers"></div>
           </article>
           <article class="slide">
             <div class="slide-grid">
               <div>
-                <div class="kicker">Stage 05 / speech-to-text</div>
-                <h2>Give the voices their words.</h2>
+                <div class="kicker">Stage 05 / Multilingual ASR &amp; Intelligence</div>
+                <h2>Give the voices their words &amp; meaning.</h2>
                 <p class="lede">
-                  faster-whisper transcribes each speaker track independently —
-                  local and free — keeping the speaker label and word timestamps
-                  attached, and auto-detecting code-switched language.
+                  Sarvam AI transcribes speaker tracks while Google Gemini detects code-switching (e.g. Hinglish),
+                  identifies regional Indian languages, translates dialogue into English, and extracts executive insights.
                 </p>
                 <div class="loader"></div>
                 <div class="status" id="asrStatus">
@@ -720,65 +1192,21 @@
               </div>
               <div class="visual">
                 <div>
-                  <div class="kicker">Transcript engine</div>
+                  <div class="kicker">Multilingual Engine</div>
                   <div class="metric-row">
+                    <div class="metric"><b>Sarvam + Gemini</b><span>pipeline</span></div>
+                    <div class="metric"><b id="detectedLangsCount">--</b><span>languages</span></div>
                     <div class="metric">
-                      <b>whisper</b><span>local backend</span>
-                    </div>
-                    <div class="metric">
-                      <b>words</b><span>timestamps</span>
-                    </div>
-                    <div class="metric">
-                      <b id="segmentCount">--</b><span>segments</span>
+                      <b id="segmentCount">--</b><span>turns</span>
                     </div>
                   </div>
                   <p class="lede">
-                    Runs on-device; the model is set in
-                    <span class="mono">config/live.yaml</span>.
+                    Cloud-powered via <span class="mono">SARVAM_API_KEY</span> &amp; <span class="mono">GEMINI_API_KEY</span>.
                   </p>
                 </div>
               </div>
             </div>
             <div id="asrResult"></div>
-          </article>
-          <article class="slide">
-            <div class="slide-grid">
-              <div>
-                <div class="kicker">Stage 06 / structured report</div>
-                <h2>Read the story.</h2>
-                <p class="lede">
-                  Google Gemini turns the fragmented, code-switched transcript
-                  into an executive summary, keyword tags, and a cleaned
-                  speaker-separated dialogue — constrained to introduce no facts
-                  that are not in the transcript.
-                </p>
-                <div class="loader"></div>
-                <div class="status" id="llmStatus">
-                  Waiting for the transcript…
-                </div>
-                <div class="button-row">
-                  <button class="secondary" id="reset2">
-                    Process another file
-                  </button>
-                </div>
-              </div>
-              <div class="visual">
-                <div>
-                  <div class="kicker">Report engine</div>
-                  <div class="metric-row">
-                    <div class="metric"><b>Gemini</b><span>LLM backend</span></div>
-                    <div class="metric">
-                      <b id="tagCount">--</b><span>keyword tags</span>
-                    </div>
-                  </div>
-                  <p class="lede">
-                    No-new-facts guardrail; falls back to a minimal report if the
-                    LLM is unavailable.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div id="llmResult"></div>
           </article>
         </div>
         <button
@@ -818,10 +1246,6 @@
             ><input type="radio" name="stage" value="4" /><span></span
             >ASR</label
           >
-          <label class="carousel-dot"
-            ><input type="radio" name="stage" value="5" /><span></span
-            >Report</label
-          >
         </div>
       </section>
     </main>
@@ -834,22 +1258,26 @@
       const slides = $("slides"),
         dots = [...document.querySelectorAll('input[name="stage"]')],
         dotLabels = [...document.querySelectorAll(".carousel-dot")];
-      const waveColors = [
-        "#ee765f",
-        "#56a88e",
-        "#d29b3f",
-        "#668cc4",
-        "#9b77b7",
-        "#c66f91",
+
+      // ── speaker palette (dark-background friendly) ──────────────────────
+      const SPK_COLORS = [
+        "#e8a03a", // amber
+        "#5bb8d4", // cyan
+        "#7ec86e", // green
+        "#c97fe8", // violet
+        "#e87b7b", // rose
+        "#71b0e8", // sky
       ];
+      const waveColors = SPK_COLORS; // legacy alias used by old drawWaveform calls
+
+      // ── carousel ─────────────────────────────────────────────────────────
       function progress(percent, label) {
         $("progressBar").style.width = `${percent}%`;
         $("progressLabel").textContent = `${Math.round(percent)}% · ${label}`;
       }
       function go(index) {
         currentStage = index;
-        const step = 100 / dots.length;   // one slide width (robust to #stages)
-        slides.style.transform = `translateX(-${index * step}%)`;
+        slides.style.transform = `translateX(-${index * 20}%)`;
         dots.forEach((dot, i) => (dot.checked = i === index));
         dotLabels.forEach((label, i) =>
           label.classList.toggle("available", i <= maxStage),
@@ -870,6 +1298,8 @@
       $("nextStep").addEventListener("click", () =>
         go(Math.min(maxStage, currentStage + 1)),
       );
+
+      // ── simple legacy waveform canvas (used in slides 1-3) ───────────────
       async function drawWaveform(url, canvas, color) {
         const response = await fetch(url);
         if (!response.ok) return;
@@ -879,22 +1309,22 @@
         const height = canvas.clientHeight || 74;
         canvas.width = width * ratio;
         canvas.height = height * ratio;
-        const context = canvas.getContext("2d");
-        context.scale(ratio, ratio);
-        context.clearRect(0, 0, width, height);
-        context.fillStyle = "#f3efe7";
-        context.fillRect(0, 0, width, height);
-        context.strokeStyle = "#d8d1c3";
-        context.beginPath();
-        context.moveTo(0, height / 2);
-        context.lineTo(width, height / 2);
-        context.stroke();
-        context.fillStyle = color;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(ratio, ratio);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#f3efe7";
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = "#d8d1c3";
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+        ctx.fillStyle = color;
         const values = data.samples || [];
         const barWidth = width / Math.max(values.length, 1);
         values.forEach((value, index) => {
           const barHeight = Math.max(1.5, value * (height * 0.44));
-          context.fillRect(
+          ctx.fillRect(
             index * barWidth,
             height / 2 - barHeight,
             Math.max(1, barWidth - 0.7),
@@ -902,10 +1332,19 @@
           );
         });
       }
+
+      // ── helpers ──────────────────────────────────────────────────────────
       function message(id, text, error = false) {
         $(id).textContent = text;
         $(id).className = `status ${error ? "error" : ""}`;
       }
+      function fmtTime(secs) {
+        const m = Math.floor(secs / 60);
+        const s = Math.floor(secs % 60);
+        return `${m}:${String(s).padStart(2, "0")}`;
+      }
+
+      // ── drag-and-drop / file pick ─────────────────────────────────────
       const drop = $("drop"),
         fileInput = $("file");
       drop.addEventListener("click", () => fileInput.click());
@@ -932,6 +1371,7 @@
         progress(0, "Ready");
         message("status", "Ready. Stage 1 will begin locally.");
       }
+
       async function post(path, body) {
         const response = await fetch(path, {
           method: "POST",
@@ -942,37 +1382,552 @@
         if (!response.ok) throw new Error(data.error || "Stage failed");
         return data;
       }
+
       function timeline(data) {
         const total = data.duration_s || 1;
-        return `<div class="metric-row"><div class="metric"><b>${data.num_speakers}</b><span>speakers found</span></div><div class="metric"><b>${data.turns.length}</b><span>speaker turns</span></div><div class="metric"><b>${data.overlap_regions.length}</b><span>merged intervals</span></div></div><div class="timeline">${data.turns.map((turn) => `<div class="turn"><div class="turn-bar" style="width:${Math.max(8, ((turn.end_s - turn.start_s) / total) * 100)}%">${turn.speaker} · ${turn.start}—${turn.end}</div></div>`).join("")}</div>${data.overlap_regions.length ? `<div class="overlap">${data.overlap_regions.length} merged interval(s) marked for Stage 3.</div>` : '<div class="skip">No merged intervals found. Stage 3 will pass through without loading a separator.</div>'}<details><summary>Open timeline JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+        const backendBadge = data.backend
+          ? `<div style="margin-bottom: 10px;"><small class="mono" style="color:var(--coral); font-weight:bold; background:#fff2ee; padding:3px 8px; border-radius:4px; border:1px solid #fed7cc;">ENGINE: ${escape(data.backend)}</small></div>`
+          : "";
+        return `${backendBadge}<div class="metric-row"><div class="metric"><b>${data.num_speakers}</b><span>speakers found</span></div><div class="metric"><b>${data.turns.length}</b><span>speaker turns</span></div><div class="metric"><b>${data.overlap_regions.length}</b><span>merged intervals</span></div></div><div class="timeline">${data.turns.map((turn) => `<div class="turn"><div class="turn-bar" style="width:${Math.max(8, ((turn.end_s - turn.start_s) / total) * 100)}%">${turn.speaker} · ${turn.start}&mdash;${turn.end}</div></div>`).join("")}</div>${data.overlap_regions.length ? `<div class="overlap">${data.overlap_regions.length} merged interval(s) marked for Stage 3.</div>` : '<div class="skip">No merged intervals found. Stage 3 will pass through without loading a separator.</div>'}<details><summary>Open timeline JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
+
       function transcript(data) {
-        const rows = data.segments
-          .map(
-            (segment) =>
-              `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="time">${segment.start.toFixed(2)}s — ${segment.end.toFixed(2)}s</div><div class="text">${escape(segment.text)}</div></div>`,
-          )
+        // 1. AI Executive Summary Card (from Gemini)
+        let summaryCard = "";
+        if (data.summary) {
+          const tagsHtml = (data.tags || [])
+            .map((t) => `<span class="tag-pill">🏷️ ${escape(t)}</span>`)
+            .join("");
+          const langsHtml = Object.entries(data.language_breakdown || {})
+            .map(([l, p]) => `<span class="lang-pill">🗣️ <b>${escape(l)}</b>: ${escape(String(p))}</span>`)
+            .join("");
+
+          summaryCard = `
+            <div class="ai-summary-card">
+              <div class="ai-summary-header">
+                <div class="ai-summary-title">✨ Gemini Multilingual Intelligence Report</div>
+                <small class="mono" style="color:var(--muted);">${escape(data.backend || "Sarvam + Gemini")}</small>
+              </div>
+              <div class="ai-summary-text">${escape(data.summary)}</div>
+              <div class="ai-summary-meta">
+                ${langsHtml}
+                ${tagsHtml}
+              </div>
+            </div>
+          `;
+        }
+
+        // 2. Guardrail Verification Panel
+        let guardrailPanel = "";
+        const guardrailStatus = data.guardrail_status || "";
+        if (guardrailStatus) {
+          const statusClass = guardrailStatus === "PASSED"
+            ? "passed"
+            : guardrailStatus === "PASSED_WITH_WARNINGS"
+              ? "warnings"
+              : "flagged";
+          const statusEmoji = guardrailStatus === "PASSED"
+            ? "✅"
+            : guardrailStatus === "PASSED_WITH_WARNINGS"
+              ? "⚠️"
+              : "🚨";
+          const scoreVal = typeof data.consistency_score === "number" ? data.consistency_score : 1.0;
+          const scorePct = Math.round(scoreVal * 100);
+          const hallucinations = data.hallucinations_detected || [];
+          const hallucinationsHtml = hallucinations.length
+            ? `<ul class="guardrail-hallucination-list">${hallucinations.map(h => `<li>${escape(h)}</li>`).join("")}</ul>`
+            : `<div style="font-size:0.82rem;color:#15803d;margin-top:6px;">✓ No hallucinations detected in generated summary.</div>`;
+          guardrailPanel = `
+            <div class="guardrail-panel ${statusClass}">
+              <div class="guardrail-header">
+                <span class="guardrail-title">🛡️ Factual Consistency Guardrail</span>
+                <span class="guardrail-badge ${statusClass}">${statusEmoji} ${escape(guardrailStatus.replace(/_/g, " "))}</span>
+              </div>
+              <div class="guardrail-score-bar">
+                <div class="guardrail-score-fill ${statusClass}" style="width:${scorePct}%"></div>
+              </div>
+              <div class="guardrail-score-label">
+                <span>Grounding Score</span>
+                <span>${scorePct}%</span>
+              </div>
+              ${hallucinationsHtml}
+            </div>
+          `;
+        }
+
+        // 3. Multilingual Dialogue Rows
+        const rows = (data.segments || [])
+          .map((segment, idx) => {
+            const isCs = segment.is_code_switched;
+            const langClass = isCs ? "lang-badge code-switch" : "lang-badge";
+            const langIcon = isCs ? "🔀" : "🌐";
+            const langLabel = segment.lang || (isCs ? "Code-switched" : "Detected");
+
+            const transHtml = (segment.translation && segment.translation.trim() !== segment.text.trim())
+              ? `<div class="translation-box"><span class="translation-label">English Translation</span><span>"${escape(segment.translation)}"</span></div>`
+              : "";
+
+            return `
+              <div class="transcript-row" id="transcript-row-${idx}" data-start="${segment.start}" data-end="${segment.end}" onclick="seekToTranscriptTime(${segment.start})" title="Click to play from ${segment.start.toFixed(2)}s">
+                <div>
+                  <div class="speaker-name">${escape(segment.speaker)}</div>
+                  <div class="time">${segment.start.toFixed(2)}s &mdash; ${segment.end.toFixed(2)}s</div>
+                </div>
+                <div>
+                  <span class="${langClass}" title="${isCs ? 'Code-switching detected' : 'Detected language'}">${langIcon} ${escape(langLabel)}</span>
+                </div>
+                <div class="text-col">
+                  <div class="text-primary">${escape(segment.text)}</div>
+                  ${transHtml}
+                </div>
+              </div>
+            `;
+          })
           .join("");
-        return `<div class="transcript-list">${rows || '<div class="skip">No transcript segments were produced.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
+
+        return `${summaryCard}${guardrailPanel}<div class="transcript-list">${rows || '<div class="skip">No transcript segments available.</div>'}</div><details><summary>Open transcript JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
       }
-      function report(data) {
-        const tags = (data.tags || [])
-          .map((tag) => `<span class="overlap">${escape(String(tag))}</span>`)
-          .join(" ");
-        const dialogue = (data.dialogue || [])
-          .map(
-            (segment) =>
-              `<div class="transcript-row"><div class="speaker-name">${segment.speaker}</div><div class="text">${escape(segment.text || "")}</div></div>`,
-          )
-          .join("");
-        return `<div class="stage-output"><div class="mono">Executive summary</div><p class="lede">${escape(data.summary || "")}</p>${tags ? `<div class="mono">Keyword tags</div><div>${tags}</div>` : ""}<div class="mono">Cleaned dialogue</div><div class="transcript-list">${dialogue || '<div class="skip">No dialogue produced.</div>'}</div></div><details><summary>Open report JSON</summary><pre>${escape(JSON.stringify(data, null, 2))}</pre></details>`;
-      }
+
       function escape(value) {
         return value.replace(
           /[&<>]/g,
           (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[char],
         );
       }
+
+      /* ── matplotlib plot renderer ───────────────────────────────────── */
+      const PLOT_LABELS = {
+        energy_vad: "Energy VAD — speech regions",
+        embedding_heatmap: "Embedding similarity heatmap",
+        speaker_gantt: "Speaker timeline (Gantt)",
+        separation_sources: "Separated sources — amplitude envelopes",
+      };
+      function renderPlots(plots) {
+        if (!plots || !Object.keys(plots).length) return "";
+        const items = Object.entries(plots)
+          .map(([key, url]) => {
+            const label = PLOT_LABELS[key] || key;
+            return `<div class="plot-card"><div class="plot-label mono">${label}</div><img class="plot-img" src="${url}" alt="${label}" loading="lazy" /></div>`;
+          })
+          .join("");
+        return `<div class="plot-grid">${items}</div>`;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════
+         INTERACTIVE MULTI-SPEAKER WAVEFORM VISUALISER
+         ═══════════════════════════════════════════════════════════════════ */
+      let vizAudio = null; // single hidden HTMLAudioElement for the mix
+      let vizData = null; // cached /api/waveform_data response
+      let vizCursors = []; // all .viz-cursor elements (one per row)
+      let animFrame = null;
+
+      /* Draw one waveform canvas row.
+         bars = [0..1] amplitude array, turns = [{start,end} as 0..1 fractions],
+         color = hex for speaker highlight, bgColor = base bar color */
+      function drawVizCanvas(canvas, bars, turns, hexColor) {
+        const DIM_COLOR = "rgba(255,255,255,0.12)"; // inactive bars (dark bg)
+        const ratio = window.devicePixelRatio || 1;
+        const W = canvas.parentElement.clientWidth || 600;
+        const H = 64;
+        canvas.width = W * ratio;
+        canvas.height = H * ratio;
+        canvas.style.width = W + "px";
+        canvas.style.height = H + "px";
+        const ctx = canvas.getContext("2d");
+        ctx.scale(ratio, ratio);
+        ctx.clearRect(0, 0, W, H);
+
+        const n = bars.length || 1;
+        const bw = W / n; // bar slot width (may be fractional)
+
+        // ── 1. draw dim bars everywhere first ──────────────────────────
+        ctx.fillStyle = DIM_COLOR;
+        for (let i = 0; i < n; i++) {
+          const bh = Math.max(1.5, bars[i] * (H * 0.46));
+          ctx.fillRect(i * bw, H / 2 - bh, Math.max(1, bw - 0.8), bh * 2);
+        }
+
+        // ── 2. overpaint highlighted bars inside each turn region ──────
+        // Parse hex color once, derive a slightly transparent fill
+        let r = 255,
+          g = 200,
+          b = 80;
+        const m = hexColor.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+        if (m) {
+          r = parseInt(m[1], 16);
+          g = parseInt(m[2], 16);
+          b = parseInt(m[3], 16);
+        }
+
+        for (const turn of turns) {
+          const x0 = Math.floor(turn.start * n);
+          const x1 = Math.ceil(turn.end * n);
+          for (let i = x0; i < x1 && i < n; i++) {
+            const bh = Math.max(1.5, bars[i] * (H * 0.46));
+            // semi-transparent fill behind the bar to create the "block" effect
+            const blockH = Math.max(bh * 2 + 6, 12);
+            ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
+            ctx.fillRect(
+              i * bw,
+              H / 2 - blockH / 2,
+              Math.max(1, bw - 0.8),
+              blockH,
+            );
+            // bright bar
+            ctx.fillStyle = `rgba(${r},${g},${b},0.90)`;
+            ctx.fillRect(i * bw, H / 2 - bh, Math.max(1, bw - 0.8), bh * 2);
+          }
+        }
+      }
+
+      function buildVizRows(data) {
+        const container = $("vizRows");
+        container.innerHTML = "";
+        vizCursors = [];
+
+        const rows = [
+          { speaker: "MIX", samples: data.mix, turns: [], color: "#8fc4ae" },
+          ...data.speakers.map((spk, i) => ({
+            speaker: spk.speaker,
+            samples: spk.samples,
+            turns: spk.turns,
+            color: SPK_COLORS[i % SPK_COLORS.length],
+          })),
+        ];
+
+        for (const row of rows) {
+          // label
+          const label = document.createElement("div");
+          label.className = "viz-label";
+          label.style.background = row.color;
+          label.style.color = row.speaker === "MIX" ? "#172225" : "#fff";
+          label.textContent = row.speaker;
+
+          // canvas wrapper (relative, for cursor positioning)
+          const wrap = document.createElement("div");
+          wrap.className = "viz-canvas-wrap";
+
+          const canvas = document.createElement("canvas");
+          wrap.appendChild(canvas);
+
+          // playback cursor
+          const cursor = document.createElement("div");
+          cursor.className = "viz-cursor";
+          cursor.style.left = "0px";
+          wrap.appendChild(cursor);
+          vizCursors.push(cursor);
+
+          // click-to-seek on any row
+          wrap.addEventListener("click", (e) => {
+            if (!vizAudio || !data.duration_s) return;
+            const rect = wrap.getBoundingClientRect();
+            const frac = (e.clientX - rect.left) / rect.width;
+            vizAudio.currentTime = Math.max(
+              0,
+              Math.min(data.duration_s, frac * data.duration_s),
+            );
+            renderSubtitlesAtTime(vizAudio.currentTime);
+          });
+
+          const rowEl = document.createElement("div");
+          rowEl.className = "viz-row";
+          rowEl.dataset.speaker = row.speaker;
+          rowEl.appendChild(label);
+          rowEl.appendChild(wrap);
+          container.appendChild(rowEl);
+
+          // draw (after append so clientWidth is available)
+          requestAnimationFrame(() =>
+            drawVizCanvas(canvas, row.samples, row.turns, row.color),
+          );
+        }
+
+        // re-draw on resize
+        window.addEventListener("resize", () => {
+          const allWraps = container.querySelectorAll(
+            ".viz-canvas-wrap canvas",
+          );
+          rows.forEach((row, i) => {
+            if (allWraps[i])
+              drawVizCanvas(allWraps[i], row.samples, row.turns, row.color);
+          });
+        });
+      }
+
+      /* ── Stage 04 Live Subtitles Synchronizer ─────────────────────────── */
+      let vizSegments = [];
+
+      function setVizSubtitles(segments) {
+        if (Array.isArray(segments) && segments.length) {
+          vizSegments = segments;
+          if (vizAudio) {
+            renderSubtitlesAtTime(vizAudio.currentTime || 0);
+          }
+        }
+      }
+
+      function highlightTranscriptRow(activeSeg) {
+        if (!activeSeg) return;
+        const allRows = document.querySelectorAll(".transcript-row");
+        allRows.forEach((r) => {
+          const s = parseFloat(r.getAttribute("data-start"));
+          if (!isNaN(s) && Math.abs(s - activeSeg.start) < 0.05) {
+            r.classList.add("active");
+          } else {
+            r.classList.remove("active");
+          }
+        });
+      }
+
+      function seekToTranscriptTime(time) {
+        if (!vizAudio || !vizData || !vizData.duration_s) return;
+        vizAudio.currentTime = Math.max(0, Math.min(vizData.duration_s, time));
+        renderSubtitlesAtTime(vizAudio.currentTime);
+        if (vizAudio.paused) {
+          vizAudio.play();
+        }
+        updateCursor();
+        // smoothly navigate/scroll to Stage 04 player if currently on Stage 05
+        go(3);
+      }
+
+      function renderSubtitlesAtTime(currentTime) {
+        const subBox = $("vizSubtitles");
+        const subTime = $("subTimestamp");
+        if (!subBox) return;
+
+        if (subTime) {
+          const m = Math.floor(currentTime / 60);
+          const s = currentTime % 60;
+          subTime.textContent = `${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}`;
+        }
+
+        // Reset speaking indicator on waveform rows
+        document
+          .querySelectorAll(".viz-row")
+          .forEach((r) => r.classList.remove("is-speaking"));
+
+        // 1. Check ASR transcript segments (primary rich source)
+        const segments =
+          vizSegments && vizSegments.length
+            ? vizSegments
+            : vizData && vizData.segments
+              ? vizData.segments
+              : [];
+        const activeSegs = segments.filter(
+          (s) => currentTime >= s.start && currentTime <= s.end,
+        );
+
+        if (activeSegs.length > 0) {
+          subBox.innerHTML = activeSegs
+            .map((s) => {
+              const spkIdx =
+                vizData && vizData.speakers
+                  ? vizData.speakers.findIndex((sp) => sp.speaker === s.speaker)
+                  : 0;
+              const color =
+                spkIdx >= 0
+                  ? SPK_COLORS[spkIdx % SPK_COLORS.length]
+                  : "#ee765f";
+
+              // Highlight the matching speaker row
+              const row = document.querySelector(
+                `.viz-row[data-speaker="${s.speaker}"]`,
+              );
+              if (row) row.classList.add("is-speaking");
+
+              // Word-level highlighting if word timestamps are present
+              let textHtml = "";
+              if (s.words && s.words.length > 0) {
+                textHtml = s.words
+                  .map((w) => {
+                    let cls = "sub-word";
+                    if (currentTime >= w.start && currentTime <= w.end) {
+                      cls += " active";
+                    } else if (currentTime > w.end) {
+                      cls += " past";
+                    } else {
+                      cls += " future";
+                    }
+                    return `<span class="${cls}">${escape(w.text)}</span>`;
+                  })
+                  .join(" ");
+              } else {
+                textHtml = escape(s.text);
+              }
+
+              const isCs = s.is_code_switched;
+              const langBadge = s.lang
+                ? `<span class="sub-lang-badge">${isCs ? "🔀 " : ""}${escape(s.lang)}</span>`
+                : "";
+              const transHtml =
+                s.translation && s.translation.trim() !== s.text.trim()
+                  ? `<div class="sub-translation">↳ <i>"${escape(s.translation)}"</i></div>`
+                  : "";
+
+              return `<div class="sub-item">
+              <span class="sub-speaker-badge" style="background:${color}">${escape(s.speaker)}</span>
+              ${langBadge}
+              <span class="sub-text">${textHtml}</span>
+              ${transHtml}
+            </div>`;
+            })
+            .join("");
+
+          highlightTranscriptRow(activeSegs[0]);
+          return;
+        }
+
+        // 2. Fallback: Diarization turns (if ASR not yet run or non-speech/silent turn)
+        const turns = vizData && vizData.turns ? vizData.turns : [];
+        const activeTurns = turns.filter((t) => {
+          const st = t.start_s !== undefined ? t.start_s : t.start;
+          const et = t.end_s !== undefined ? t.end_s : t.end;
+          return currentTime >= st && currentTime <= et;
+        });
+
+        if (activeTurns.length > 0) {
+          subBox.innerHTML = activeTurns
+            .map((t) => {
+              const spk = t.speaker;
+              const spkIdx =
+                vizData && vizData.speakers
+                  ? vizData.speakers.findIndex((sp) => sp.speaker === spk)
+                  : 0;
+              const color =
+                spkIdx >= 0
+                  ? SPK_COLORS[spkIdx % SPK_COLORS.length]
+                  : "#ee765f";
+
+              const row = document.querySelector(
+                `.viz-row[data-speaker="${spk}"]`,
+              );
+              if (row) row.classList.add("is-speaking");
+
+              const timeLabel =
+                t.start && t.end
+                  ? `${t.start} &mdash; ${t.end}`
+                  : `${t.start_s?.toFixed(2)}s &mdash; ${t.end_s?.toFixed(2)}s`;
+              return `<div class="sub-item">
+              <span class="sub-speaker-badge" style="background:${color}">${escape(spk)}</span>
+              <span class="sub-text" style="color:var(--yellow); font-style:italic;">[Speaking &middot; ${timeLabel}]</span>
+            </div>`;
+            })
+            .join("");
+          return;
+        }
+
+        // 3. Silence / Idle
+        subBox.innerHTML = `<span class="sub-idle">&#9834; [Silence / No active speech]</span>`;
+      }
+
+      function updateCursor() {
+        if (!vizAudio || !vizData) return;
+        const frac =
+          vizData.duration_s > 0
+            ? vizAudio.currentTime / vizData.duration_s
+            : 0;
+        const pct = (frac * 100).toFixed(3) + "%";
+        for (const c of vizCursors) {
+          // position relative to wrap width
+          const wrapW = c.parentElement.clientWidth;
+          c.style.left = frac * wrapW + "px";
+        }
+        $("seekFill").style.width = pct;
+        $("timeDisplay").textContent =
+          fmtTime(vizAudio.currentTime) + " / " + fmtTime(vizData.duration_s);
+
+        renderSubtitlesAtTime(vizAudio.currentTime);
+        animFrame = requestAnimationFrame(updateCursor);
+      }
+
+      function initVizAudio(url, duration) {
+        if (vizAudio) {
+          vizAudio.pause();
+          vizAudio.src = "";
+        }
+        if (animFrame) cancelAnimationFrame(animFrame);
+
+        vizAudio = new Audio(url);
+        vizAudio.preload = "metadata";
+
+        vizAudio.addEventListener("play", () => {
+          $("playPauseBtn").innerHTML = "&#9646;&#9646;";
+          renderSubtitlesAtTime(vizAudio.currentTime);
+          animFrame = requestAnimationFrame(updateCursor);
+        });
+        vizAudio.addEventListener("pause", () => {
+          $("playPauseBtn").innerHTML = "&#9654;";
+          renderSubtitlesAtTime(vizAudio.currentTime);
+          cancelAnimationFrame(animFrame);
+        });
+        vizAudio.addEventListener("ended", () => {
+          $("playPauseBtn").innerHTML = "&#9654;";
+          cancelAnimationFrame(animFrame);
+          // snap cursor to end
+          $("seekFill").style.width = "100%";
+          $("timeDisplay").textContent =
+            fmtTime(duration) + " / " + fmtTime(duration);
+          for (const c of vizCursors) {
+            c.style.left = c.parentElement.clientWidth + "px";
+          }
+          renderSubtitlesAtTime(duration);
+        });
+
+        $("playPauseBtn").onclick = () => {
+          if (vizAudio.paused) vizAudio.play();
+          else vizAudio.pause();
+        };
+
+        // seek bar
+        const seekBar = $("seekBar");
+        seekBar.addEventListener("click", (e) => {
+          const rect = seekBar.getBoundingClientRect();
+          const frac = (e.clientX - rect.left) / rect.width;
+          vizAudio.currentTime = Math.max(
+            0,
+            Math.min(duration, frac * duration),
+          );
+          renderSubtitlesAtTime(vizAudio.currentTime);
+          if (vizAudio.paused) updateCursor(); // update display once even if paused
+        });
+      }
+
+      async function buildWaveformViz(jobId) {
+        try {
+          const resp = await fetch(`/api/waveform_data?job=${jobId}`);
+          if (!resp.ok) return false;
+          const data = await resp.json();
+          if (!data.speakers || !data.speakers.length) return false;
+          vizData = data;
+          if (data.segments && data.segments.length) {
+            setVizSubtitles(data.segments);
+          }
+
+          buildVizRows(data);
+          initVizAudio(data.mix_audio_url, data.duration_s);
+
+          // download buttons
+          const dlContainer = $("speakerDownloads");
+          dlContainer.innerHTML = "";
+          for (const spk of data.speakers) {
+            const a = document.createElement("a");
+            a.className = "download";
+            a.href = spk.audio_url;
+            a.download = spk.speaker + ".wav";
+            a.textContent = `Download ${spk.speaker}.wav`;
+            dlContainer.appendChild(a);
+          }
+
+          $("waveViz").style.display = "block";
+          renderSubtitlesAtTime(0);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      /* ══════════════════════════════════════════════════════════════════ */
+
       $("start").addEventListener("click", async () => {
         if (!selected) return;
         $("start").disabled = true;
@@ -1002,7 +1957,8 @@
           progress(30, "Diarization running");
           message("diarStatus", "Mapping speakers and building the timeline…");
           const diar = await post("/api/diarize", { job_id: job });
-          $("diarResult").innerHTML = timeline(diar);
+          $("diarResult").innerHTML =
+            timeline(diar) + renderPlots(diar.plots || {});
           message(
             "diarStatus",
             diar.notes.length ? diar.notes.join(" ") : "Timeline ready.",
@@ -1026,7 +1982,7 @@
             sep.skipped ? "Separation skipped" : "Separation complete",
           );
           $("sepResult").innerHTML =
-            `${sep.separated_sources.length ? `<div class="source-grid">${sep.separated_sources.map((source, index) => `<div class="source-card"><small class="mono">SOURCE ${String(index + 1).padStart(2, "0")} · ${source.speaker}</small><div class="mono">${source.region.start_s.toFixed(2)}s — ${source.region.end_s.toFixed(2)}s</div><canvas class="waveform" id="sourceWave${index}" aria-label="Separated source waveform"></canvas><audio controls src="${source.url}"></audio><a class="download" href="${source.url}">Download source</a></div>`).join("")}</div><details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}`;
+            `${sep.separated_sources.length ? `<div class="source-grid">${sep.separated_sources.map((source, index) => `<div class="source-card"><small class="mono">SOURCE ${String(index + 1).padStart(2, "0")} · ${source.speaker}</small><div class="mono">${source.region.start_s.toFixed(2)}s &mdash; ${source.region.end_s.toFixed(2)}s</div><canvas class="waveform" id="sourceWave${index}" aria-label="Separated source waveform"></canvas><audio controls src="${source.url}"></audio><a class="download" href="${source.url}">Download source</a></div>`).join("")}</div><details><summary>Open separation JSON</summary><pre>${escape(JSON.stringify(sep, null, 2))}</pre></details>` : '<div class="skip">There was no overlap to separate. The original mix is retained in the relevant speaker tracks.</div>'}${renderPlots(sep.plots || {})}`;
           sep.separated_sources.forEach((source, index) =>
             drawWaveform(
               source.waveform_url,
@@ -1041,61 +1997,79 @@
               : "Stage 3 complete.",
           );
           $("speakerCount").textContent = sep.speaker_files.length;
-          $("speakers").innerHTML = sep.speaker_files
-            .map(
-              (file) =>
-                `<div class="speaker"><small class="mono">${file.speaker}</small><canvas class="waveform" id="wave-${file.speaker}" aria-label="${file.speaker} waveform"></canvas><audio controls src="${file.url}"></audio><a class="download" href="${file.url}">Download ${file.speaker}.wav</a></div>`,
-            )
-            .join("");
-          sep.speaker_files.forEach((file, index) =>
-            drawWaveform(
-              file.waveform_url,
-              $("wave-" + file.speaker),
-              waveColors[index % waveColors.length],
-            ),
-          );
           maxStage = 3;
-          progress(72, "Speaker tracks complete");
-          go(4);
-          message(
-            "asrStatus",
-            "Transcribing each speaker track with faster-whisper…",
-          );
+          progress(80, "Speaker tracks complete");
+
+          // ── try the interactive waveform visualiser ───────────────────
+          const vizOk = await buildWaveformViz(job);
+          if (!vizOk) {
+            // fallback: plain speaker grid
+            $("speakers").innerHTML = sep.speaker_files
+              .map(
+                (file) =>
+                  `<div class="speaker"><small class="mono">${file.speaker}</small><canvas class="waveform" id="wave-${file.speaker}" aria-label="${file.speaker} waveform"></canvas><audio controls src="${file.url}"></audio><a class="download" href="${file.url}">Download ${file.speaker}.wav</a></div>`,
+              )
+              .join("");
+            sep.speaker_files.forEach((file, index) =>
+              drawWaveform(
+                file.waveform_url,
+                $("wave-" + file.speaker),
+                waveColors[index % waveColors.length],
+              ),
+            );
+          }
+
+          go(3);
+          progress(82, "Transcribing & analyzing multilingual speech…");
+          message("asrStatus", "Transcribing speaker tracks with Sarvam AI & synthesizing multilingual intelligence with Gemini…");
           const asr = await post("/api/asr", { job_id: job });
           $("segmentCount").textContent = asr.segments.length;
+          if ($("detectedLangsCount")) {
+            const count = (asr.languages && asr.languages.length)
+              ? asr.languages.length
+              : (new Set(asr.segments.map((s) => s.lang).filter((l) => l && l !== "Unknown"))).size || 1;
+            $("detectedLangsCount").textContent = count;
+          }
           $("asrResult").innerHTML = transcript(asr);
+          setVizSubtitles(asr.segments);
           message(
             "asrStatus",
-            asr.notes.length ? asr.notes.join(" ") : "Transcript ready.",
+            asr.notes.length ? asr.notes.join(" ") : "Multilingual transcript & AI report ready.",
           );
           maxStage = 4;
-          progress(86, "Transcript complete");
-          go(4);
-          message("llmStatus", "Summarizing and structuring with Gemini…");
-          const rep = await post("/api/llm", { job_id: job });
-          $("tagCount").textContent = (rep.tags || []).length;
-          $("llmResult").innerHTML = report(rep);
-          message(
-            "llmStatus",
-            rep.notes.length ? rep.notes.join(" ") : "Report ready.",
-          );
-          maxStage = 5;
           progress(100, "Pipeline complete");
-          go(5);
+          go(4);
         } catch (error) {
           message("status", error.message, true);
           message("diarStatus", "The journey stopped here.", true);
           message("sepStatus", "Waiting for the previous stage.", true);
           message("asrStatus", "Waiting for speaker tracks.", true);
-          message("llmStatus", "Waiting for the transcript.", true);
           progress(0, "Pipeline stopped");
           $("start").disabled = false;
         }
       });
-      function resetJourney() {
+
+      $("reset").addEventListener("click", () => {
         selected = null;
         job = null;
         maxStage = 0;
+        // stop audio
+        if (vizAudio) {
+          vizAudio.pause();
+          vizAudio.src = "";
+          vizAudio = null;
+        }
+        if (animFrame) {
+          cancelAnimationFrame(animFrame);
+          animFrame = null;
+        }
+        vizData = null;
+        vizCursors = [];
+        vizSegments = [];
+        if ($("vizSubtitles"))
+          $("vizSubtitles").innerHTML =
+            '<span class="sub-idle">&#9654; Press play or seek anywhere on the waveform to track spoken words</span>';
+        if ($("subTimestamp")) $("subTimestamp").textContent = "0:00.00";
         fileInput.value = "";
         $("fileName").textContent = "No file selected";
         $("prepResult").innerHTML = "";
@@ -1103,16 +2077,21 @@
         $("sepResult").innerHTML = "";
         $("speakers").innerHTML = "";
         $("asrResult").innerHTML = "";
-        $("llmResult").innerHTML = "";
         $("segmentCount").textContent = "--";
-        $("tagCount").textContent = "--";
+        if ($("detectedLangsCount")) $("detectedLangsCount").textContent = "--";
+        $("speakerCount").textContent = "--";
+        $("vizRows").innerHTML = "";
+        $("speakerDownloads").innerHTML = "";
+        $("waveViz").style.display = "none";
+        $("seekFill").style.width = "0%";
+        $("timeDisplay").textContent = "0:00 / 0:00";
+        $("playPauseBtn").innerHTML = "&#9654;";
         $("start").disabled = true;
         go(0);
         progress(0, "Waiting for audio");
         message("status", "Choose another recording.");
-      }
-      $("reset").addEventListener("click", resetJourney);
-      $("reset2").addEventListener("click", resetJourney);
+      });
+
       go(0);
     </script>
   </body>

@@ -33,3 +33,8 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Eval audio + external result bundles: regenerate via dhvani_eval/build_asr_whisper.py / share out-of-band (too large for git)
+dhvani_eval/asr_whisper/audio/
+result zip sarvam.zip
+results-faster-whisper.zip

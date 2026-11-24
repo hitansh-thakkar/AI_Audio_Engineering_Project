@@ -14,13 +14,13 @@ pyannote.audio>=4.0        # requires Python 3.10+; runs on CPU (free HF token, 
 speechbrain>=1.0
 # asteroid                 # optional, for Conv-TasNet baseline
 
-# ASR (fully local, free — the default path)
-faster-whisper             # CTranslate2 Whisper runtime — int8, CPU or GPU; native word timestamps (default backend)
-ctranslate2                # inference engine behind faster-whisper
-transformers>=4.44         # optional: IndicConformer backend (ai4bharat/indic-conformer-600m-multilingual)
-# nemo_toolkit[asr]        # optional, heavy: IndicConformer via AI4Bharat NeMo
-# whisperx                 # optional: external wav2vec2 alignment (not needed — faster-whisper gives word timestamps)
-# sarvamai                 # OPTIONAL PAID cloud ASR (backend=sarvam only; NOT on the default/free path)
+# ASR + alignment (fully local)
+sarvamai                 # Sarvam timestamped transcription API
+faster-whisper             # CTranslate2 Whisper runtime — int8 quant, CPU or GPU
+ctranslate2                # inference engine behind faster-whisper (also used to convert Tara)
+transformers>=4.44         # Tara / IndicConformer fallback path, model conversion
+whisperx                   # Whisper + wav2vec2 alignment + pyannote glue
+# nemo_toolkit[asr]        # optional, for IndicConformer (AI4Bharat NeMo fork) — heavy
 
 # Denoise (optional)
 demucs                     # music/vocal separation used ONLY as a denoiser
@@ -38,6 +38,11 @@ pyannote.metrics
 torchmetrics
 rouge-score
 bert-score                 # downloads a free model (e.g. roberta-large) from HF on first use
+# benchmark suite (src/evaluation/suite: reports, LLM grounding, preprocessing ablation)
+sentence-transformers      # LaBSE cross-lingual grounding for the LLM benchmark (free model)
+noisereduce                # preprocessing ablation baseline (stationary spectral gating)
+matplotlib                 # report charts
+pandas                     # report tables
 
 # UI (Streamlit app: `streamlit run app.py`)
 streamlit                  # pulls altair + pandas (used for waveforms + timeline table)
