@@ -6,6 +6,7 @@ imported by rescore_external.py instead of being re-run):
   * indicw2v   — ai4bharat/indicwav2vec-hindi (proposal-named "IndicWav2Vec"), Hindi only
   * indicconf  — ai4bharat/indic-conformer-600m-multilingual, CTC and RNNT decoders
   * gemini:<m> — Gemini API free tier, stratified subset only (quota)
+  * fw:<model>:<preset>[:auto] — faster-whisper (naive | tuned decoding; :auto = Whisper LID)
 
 Language is given from the manifest (oracle language ID) for every system, matching the
 external runs, so the comparison isolates recognition quality. Hypotheses are cached per
@@ -240,7 +241,84 @@ def gemini_backend(model_name: str) -> Transcriber:
     return run
 
 
+# faster-whisper decoding presets for the ablation (fw:<model>:<preset>). Each preset changes
+# one family of knobs relative to the previous so WER deltas can be attributed.
+FW_PRESETS: dict[str, dict[str, Any]] = {
+    # Mirrors the external teammate run's runtime.json: greedy temperature (no fallback, so a
+    # repetition loop is never retried), no VAD, word timestamps on.
+    "naive": dict(temperature=0.0, vad_filter=False, word_timestamps=True, condition_on_previous_text=False),
+    # + temperature fallback gated by compression-ratio / log-prob (Whisper's anti-loop
+    # mechanism) and Silero VAD so silence/noise can't seed hallucinations.
+    # Silero VAD cuts speech into <=15 s chunks passed as clip_timestamps, so each chunk is its
+    # own decode window: the per-window token cap (fatal for byte-BPE Indic scripts at ~2
+    # tokens/char) applies per short chunk, max_new_tokens lifts it toward the 448 context, and
+    # unlike the batched pipeline the temperature-fallback / compression-ratio anti-loop gate
+    # still works. No repetition_penalty: Indic UTF-8 reuses the same byte tokens constantly and
+    # penalising them corrupts characters (U+FFFD).
+    "opt": dict(
+        vad_clips=15.0,
+        max_new_tokens=400,
+        # Fallback only to mild temperatures and only on loops (compression ratio): low-resource
+        # languages (ml, as) sit below the usual log_prob gate on *every* segment, and hot
+        # sampling then drifts into another script (observed: Malayalam -> Gurmukhi).
+        temperature=(0.0, 0.2, 0.4),
+        compression_ratio_threshold=2.4,
+        log_prob_threshold=None,
+        no_speech_threshold=0.6,
+        word_timestamps=False,
+        condition_on_previous_text=False,
+    ),
+    "tuned": dict(
+        temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
+        compression_ratio_threshold=2.4,
+        log_prob_threshold=-1.0,
+        no_speech_threshold=0.6,
+        vad_filter=True,
+        word_timestamps=False,
+        condition_on_previous_text=False,
+    ),
+}
+
+
+def fw_backend(model_name: str, preset: str, oracle_lang: bool = True) -> Transcriber:
+    if os.name == "nt":  # ctranslate2 needs cuBLAS/cuDNN; reuse the DLLs bundled with torch
+        os.add_dll_directory(str(Path(torch.__file__).parent / "lib"))
+    from faster_whisper import WhisperModel
+    from faster_whisper.vad import VadOptions, get_speech_timestamps
+
+    cuda = torch.cuda.is_available()
+    model = WhisperModel(
+        model_name,
+        device="cuda" if cuda else "cpu",
+        compute_type="int8_float16" if cuda else "int8",  # fits large-v3 in 4 GB VRAM
+    )
+    opts = dict(FW_PRESETS[preset])
+    clip_s: float | None = opts.pop("vad_clips", None)
+    tok = model.hf_tokenizer
+    eot = tok.token_to_id("<|endoftext|>")
+
+    def run(y: np.ndarray, lang: str) -> str:
+        extra: dict[str, Any] = {}
+        if clip_s is not None:
+            vad = VadOptions(max_speech_duration_s=clip_s, min_silence_duration_ms=500, speech_pad_ms=200)
+            ts = get_speech_timestamps(y, vad)
+            # flat [start, end, start, end, ...] in seconds; whole clip if VAD finds nothing
+            extra["clip_timestamps"] = [x for t in ts for x in (t["start"] / 16000, t["end"] / 16000)] or "0"
+        segs, _ = model.transcribe(
+            y, language=lang.split("-")[0] if oracle_lang else None, beam_size=5, **opts, **extra
+        )
+        # Decode all text tokens together: Whisper's byte-level BPE can split one Indic
+        # character across a segment boundary, so joining per-segment `.text` leaves U+FFFD.
+        ids = [t for s in segs for t in s.tokens if t < eot]
+        return str(tok.decode(ids)).strip()
+
+    return run
+
+
 def make_backend(system: str) -> Transcriber:
+    if system.startswith("fw:"):  # fw:<model>:<preset>[:auto]
+        parts = system.split(":")
+        return fw_backend(parts[1], parts[2], oracle_lang=not (len(parts) > 3 and parts[3] == "auto"))
     if system == "mms":
         return mms_backend()
     if system == "indicw2v":

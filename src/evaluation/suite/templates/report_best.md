@@ -70,6 +70,11 @@ where another free system does better on the same clips.
 
 {{asr_mms_lang}}
 
+**Why not faster-whisper?** It is the proposal's best-known open ASR, but it is weak on Indic
+languages other than Hindi and Urdu. Even after fixing a decoding bug on our side (a per-window
+token cap that Indic scripts overflow), `large-v3` goes from {{fw_headline}}. It stays the better
+choice only for English. Report 2, section 6 has the full evidence and the published baselines.
+
 IndicWav2Vec-Hindi beats MMS on Hindi (36.9% vs 40.7%), so a Hindi-routed deployment should use
 it for Hindi. MMS has no Sanskrit adapter; the Hindi adapter is used as a fallback, hence 93.7%.
 On the 84-clip subset, Gemini 3.5 Flash-Lite (free API) scored 48.8% WER against MMS's 59.5%, but

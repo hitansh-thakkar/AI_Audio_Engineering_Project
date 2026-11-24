@@ -236,9 +236,14 @@ Why the ranking comes out this way:
   CER (23.6%) is less than half its WER (56.6%).
 - **Gemini Flash-Lite** is a general multimodal model. It is good on high-resource languages and
   weaker on Dravidian ones.
-- **faster-whisper** is near-unusable outside English, Urdu and Hindi (section 6).
+- **faster-whisper** is good on English, Urdu and Hindi and weak on every other Indic language.
+  Part of the teammate's 88.6% was a decoding bug on our side (a per-window token cap that
+  Indic scripts overflow, plus no loop recovery). Fixing it and re-running `large-v3` moves the
+  subset from {{fw_headline}}. The rest is the model, not the setup (section 6).
 
-## 6. Why the faster-whisper teammate's run fails
+## 6. Why faster-whisper scores the way it does
+
+### 6.1 Where the teammate run's errors come from
 
 ![FW error causes](charts/cmp_fw_error_causes.png)
 
@@ -291,9 +296,149 @@ fingerprint pass replayed the teammate's exact settings with each checkpoint on 
 The run was cut off before medium finished. Among the checkpoints tested, `small` matches the
 teammate's output best and reproduces most of the loops. The 0.6 s model-load time also points to
 a small checkpoint. The likely explanation is that the run used a small Whisper
-model with loop-prone decoding, on languages Whisper barely covers. Fixing the decoding
-(temperature fallback, VAD, `condition_on_previous_text`) removes most loops but leaves the
-underlying ~70% same-script WER. The real fix is an Indic-trained model (Sarvam, MMS, IndicConformer).
+model with loop-prone decoding, on languages Whisper barely covers. Section 6.2 shows
+that one of these failures was ours to fix, and 6.3 re-runs the model with the fix applied.
+
+### 6.2 Our error: the decode budget is too small for Indic scripts
+
+faster-whisper decodes each 30-second window with a budget of about {{fw_window}} new tokens
+(half of Whisper's 448-token context). Every clip here is at most 30 s, so each clip is a single
+window and one budget. Whisper's tokenizer is byte-level BPE trained mostly on English. It barely
+merges Indic UTF-8 bytes, so most Indic letters cost about two tokens, where English costs 0.4.
+A perfect transcript of a 10-second Bengali clip therefore needs more tokens than the window
+allows:
+
+{{fw_tokens}}
+
+*Tokens per character are measured on the reference text with the large-v3 tokenizer (shared by
+all v2/v3 checkpoints). "refs > 224 tokens" counts clips whose correct transcript cannot fit in
+one window, so no decoding setting could output it in full.*
+
+The teammate run shows the fingerprints of hitting that budget. **{{fw_fffd}}** outputs contain
+U+FFFD, which is a multi-byte character cut in half by the stop, and the longest output segment is
+**{{fw_longest_seg}} tokens**, which is the budget. Grouping the teammate's clips by whether they
+hit it:
+
+{{fw_cap_groups}}
+
+About half of all word errors come from clips that hit the cap. These fall into two kinds:
+
+- **Truncation.** The output stops mid-sentence, and every word after that is a deletion.
+- **Loops that fill the budget.** With temperature 0 and no compression-ratio check, a loop is
+  never retried, so it runs until the budget ends.
+
+For example, `iv_bn_010` is a 2-second clip with 4 reference words. Its output is 224 tokens of
+one repeated word.
+
+**Fix (`asr_bench --systems fw:large-v3:opt`, preset `opt`):**
+
+- Silero VAD splits each clip into speech chunks of at most 15 s, passed as `clip_timestamps`, so
+  every chunk is its own decode window.
+- `max_new_tokens=400` raises the budget per chunk.
+- Temperature fallback (0.2, 0.4) is gated on the compression ratio (2.4), so loops are retried.
+  The log-prob gate is off because low-resource languages fail it on almost every segment.
+- Hypotheses are decoded from the joined token ids, not from per-segment text. Otherwise a
+  character split across two segments also becomes U+FFFD.
+
+Two other settings were tried and rejected:
+
+- **`repetition_penalty`** produced mid-text U+FFFD (on `iv_bn_003`, at 202 tokens, below any
+  cap). Indic UTF-8 reuses the same few byte tokens for every character, so penalising repeats
+  corrupts characters rather than stopping loops.
+- **The batched pipeline** allows only one temperature, so loops cannot be retried.
+
+Two other suspects were ruled out:
+
+- **The references.** Scoring the teammate run against the verbatim `text_raw` instead of the
+  standard-spelling `text` barely moves the result:
+
+{{fw_ref_variant}}
+
+- **The normaliser.** Section 1 already shows that our Indic-safe normaliser agrees with the
+  teammate's own scorer, so the error calculation is not the cause.
+
+### 6.3 Re-run with the fix
+
+`large-v3` (int8_float16 on a 4 GB RTX 3050; oracle language) was re-run on the common stratified
+subset:
+
+![FW re-run](charts/cmp_fw_rerun.png)
+
+{{fw_rerun_lang}}
+
+*The teammate column is their original output, restricted to the same clips. The `small`
+column is a local replay with temperature 0 and no VAD.*
+
+Overall: {{fw_headline}}. The fix helps most on the languages that overflowed the budget. It does
+not close the gap to MMS. `small` is worse than the teammate run, which matches the
+fingerprinting in 6.1: the teammate likely used a small checkpoint, and `large-v3` is the better
+model.
+
+A failure that the fix does not touch: **`large-v3` writes some clips in the wrong script even
+when the language is forced.** {{fw_opt_wrong_script}}. The worst case is Malayalam written in
+Gurmukhi or Devanagari, for example `nir_ml_003` and `iv_ml_013`. This also happens at
+temperature 0 and with full `float16` weights, so it is neither sampling nor the 4 GB card's int8
+quantisation. It is the model's own language/script confusion.
+
+### 6.4 Why the remaining WER is what it is
+
+Once the decoding bug is fixed, faster-whisper's remaining error is what Whisper itself gets on
+this data. Four reasons:
+
+1. **Whisper is weak on Indic languages even on clean read speech, once it is scored
+   correctly.** OpenAI's published FLEURS numbers used a normaliser that deletes Indic vowel
+   signs (section 1), which makes Indic WER look far better than it is. Thennal D K re-scored
+   Whisper `medium` on FLEURS with diacritics kept
+   ([source](https://thennal.net/blog/2022/whisper/)):
+
+   | Language | OpenAI-reported WER | Correctly normalised WER |
+   |---|---|---|
+   | Hindi | 26.8% | 58.1% |
+   | Tamil | 23.1% | 54.9% |
+   | Urdu | 28.2% | 41.8% |
+   | Marathi | 63.2% | 109.8% |
+   | Bengali | 100.6% | 134.9% |
+   | Telugu | 82.8% | 122.4% |
+   | Kannada | 77.7% | 109.8% |
+   | Malayalam | 101.1% | 121.2% |
+   | Gujarati | 104.8% | 117.8% |
+   | Punjabi | 102.0% | 125.9% |
+   | Nepali | 54.4% | 114.4% |
+   | Assamese | 102.3% | 161.2% |
+
+   Widely quoted "20–55% WER for Indian languages" figures for Whisper are this deflated
+   column, or CER, or a fine-tuned model. On clean, read FLEURS audio, correctly scored, most
+   Indic languages are already above 100% WER.
+2. **This data is harder than FLEURS.** IndicVoices, Nirantar and Vaani are spontaneous,
+   conversational and often phone-quality, with code-switching. A 2026 Interspeech study
+   ([Vividh-ASR](https://huggingface.co/blog/adalat-ai/vividh-benchmark)) finds existing Indic
+   ASR is biased toward studio speech and degrades on spontaneous audio. It also finds base
+   Whisper zero-shot routinely exceeds 100% WER for Malayalam, and sometimes for Hindi, because
+   of script mismatch and little Indic pretraining data.
+3. **WER punishes agglutinative languages.** In Tamil, Telugu, Kannada and Malayalam one word
+   carries what English spreads over several. Any single wrong suffix or sandhi split costs a
+   whole word. That is why CER sits well below WER for every system here, and why
+   CER (not WER) falls in the 20–55% band people expect. The strong Whisper numbers for Indian languages all come from
+   **fine-tuned** models, such as IndicWhisper
+   ([Vistaar](https://arxiv.org/abs/2305.15386)) and Tara. Zero-shot `large-v3` is not one of them.
+4. **The remaining errors are the model's, not the setup's.** After the fix there is no
+   truncation and no runaway loop. What is left is wrong-script output and same-script phonetic
+   misspellings. The same audio, references and scorer give MMS-1B-all, a model with per-language
+   Indic adapters, a much lower WER (table in 6.3). The pipeline is therefore not penalising
+   Whisper unfairly.
+
+**Conclusion.** Keep faster-whisper for English, Urdu and Hindi, where it is competitive. For the
+other Indic languages use an Indic-trained model: Sarvam (external), or MMS-1B-all /
+IndicConformer locally. The only path for a Whisper-family model to match them is Indic
+fine-tuning, such as IndicWhisper or Tara.
+
+Reproduce:
+
+```bash
+python -m src.evaluation.suite.asr_bench --subset --systems fw:large-v3:opt   # re-run (~25 min, RTX 3050)
+python -m src.evaluation.suite.fw_evidence                                    # token-cap evidence
+python -m src.evaluation.suite.build_reports
+```
 
 ## 7. LLM post-processing
 

@@ -32,7 +32,7 @@ LANG = {
 }  # fmt: skip
 # reference categorical palette, fixed order (dataviz references/palette.md, light mode)
 C = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
-INT_COLS = {"clips", "errors", "ins", "peak GPU MB"}
+INT_COLS = {"clips", "errors", "ins", "peak GPU MB", "refs > 224 tokens"}
 INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 ASR = {
     "Sarvam (external)": "asr_external_sarvam",
@@ -41,7 +41,12 @@ ASR = {
     "MMS-1B-all (local)": "asr_mms",
     "IndicWav2Vec-Hindi (local)": "asr_indicw2v",
     "Gemini 3.5 Flash-Lite (free API)": "asr_gemini_gemini-3.5-flash-lite",
+    # local faster-whisper re-runs on the stratified subset (asr_bench fw:<model>:<preset>)
+    "faster-whisper small, T=0 no VAD (local)": "asr_fw_small_naive",
+    "faster-whisper large-v3, corrected decoding (local)": "asr_fw_large-v3_opt",
 }
+FW_TEAM = "faster-whisper, model unrecorded (external)"
+FW_OPT = "faster-whisper large-v3, corrected decoding (local)"
 
 
 def _style() -> None:
@@ -425,6 +430,89 @@ def llm_section(t: dict[str, str]) -> None:
     t["llm_best"] = _md(best, "{:.3f}")
 
 
+def fw_rerun_section(t: dict[str, str]) -> None:
+    """Evidence tables for why faster-whisper scores as it does (data/fw_evidence.json from
+    fw_evidence.py) and the corrected-decoding re-run on the stratified subset."""
+    ev = json.loads((DATA_OUT / "fw_evidence.json").read_text(encoding="utf-8"))
+    tk = pd.DataFrame(ev["tokens_by_language"]).T
+    tk.index = [LANG[i] for i in tk.index]
+    tk.index.name = "Language"
+    tk = tk.sort_values("tokens per character", ascending=False)
+    # tokens/char as a plain ratio; the remaining float column ("share") prints as a percentage
+    t["fw_tokens"] = _md(
+        tk.assign(**{"tokens per character": tk["tokens per character"].map(lambda v: f"{v:.2f}")})
+    )
+    cg = pd.DataFrame(ev["cap_groups"]).T
+    cg.index.name = "teammate clips"
+    t["fw_cap_groups"] = _md(cg)
+    t["fw_window"] = str(ev["window_tokens"])
+    t["fw_fffd"] = f"{ev['fffd_outputs']} of {ev['clips']}"
+    t["fw_longest_seg"] = str(ev["longest_segment_tokens"])
+    rv = ev["reference_variant"]
+    t["fw_ref_variant"] = _md(
+        pd.DataFrame(
+            {"WER": [rv["text WER"], rv["text_raw WER"]], "CER": [rv["text CER"], rv["text_raw CER"]]},
+            index=pd.Index(["`text` (standard spelling)", "`text_raw` (verbatim)"], name="reference"),
+        )
+    )
+
+    df = load_asr()
+    df = df[df.language != "sd"]
+    sub_ids = set(df[df.system == FW_OPT].id)
+    if not sub_ids:
+        raise FileNotFoundError("asr_fw_large-v3_opt.csv (run asr_bench --systems fw:large-v3:opt --subset)")
+    cols = [
+        FW_TEAM,
+        "faster-whisper small, T=0 no VAD (local)",
+        FW_OPT,
+        "MMS-1B-all (local)",
+        "Sarvam (external)",
+    ]
+    sub = df[df.id.isin(sub_ids) & df.system.isin(cols)]
+    pl = sub.groupby(["language", "system"]).apply(_pooled)
+    wer = pl.WER.unstack()[[c for c in cols if c in pl.index.get_level_values("system")]]
+    tot = sub.groupby("system").apply(_pooled)
+    wer.index = [LANG[i] for i in wer.index]
+    wer.loc["**All (excl. Sindhi)**"] = tot.WER[wer.columns]
+    wer.loc["**All, CER**"] = tot.CER[wer.columns]
+    wer.index.name = "Language"
+    t["fw_rerun_lang"] = _md(wer)
+    t["fw_headline"] = (
+        f"{tot.WER[FW_TEAM]:.1%} to {tot.WER[FW_OPT]:.1%} WER and {tot.CER[FW_TEAM]:.1%} to "
+        f"{tot.CER[FW_OPT]:.1%} CER on the same {len(sub_ids)} clips (MMS on them: "
+        f"{tot.WER['MMS-1B-all (local)']:.1%} WER)"
+    )
+
+    opt = sub[sub.system == FW_OPT].copy()
+    opt["errors"] = opt.w_substitutions + opt.w_deletions + opt.w_insertions
+    bad = opt.script_share.fillna(1.0) < 0.5
+    t["fw_opt_wrong_script"] = (
+        f"{int(bad.sum())} of {len(opt)} clips ({opt[bad].errors.sum() / opt.errors.sum():.0%} of its word "
+        f"errors; by language: "
+        + ", ".join(f"{LANG[k]} {v}" for k, v in opt[bad].language.value_counts().items())
+        + f"). On the {int((~bad).sum())} right-script clips its WER is {_pooled(opt[~bad]).WER:.1%} "
+        f"and CER {_pooled(opt[~bad]).CER:.1%}"
+    )
+
+    # chart: per-language WER, teammate vs corrected re-run vs MMS (same clips)
+    show = [c for c in (FW_TEAM, FW_OPT, "MMS-1B-all (local)") if c in wer.columns]
+    w = wer.drop(index=["**All (excl. Sindhi)**", "**All, CER**"])[show].sort_values(FW_OPT)
+    fig, ax = plt.subplots(figsize=(7.5, 6))
+    y = np.arange(len(w))
+    h = 0.27
+    for i, c in enumerate(show):
+        ax.barh(y + (i - 1) * h, w[c].clip(upper=1.6), height=h - 0.03, color=C[i],
+                label=c.replace(" (external)", "").replace(" (local)", ""))  # fmt: skip
+    ax.set_yticks(y, w.index)
+    ax.invert_yaxis()
+    ax.xaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    ax.set_xlabel("Word error rate (pooled, clipped at 160%)")
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right", fontsize=8, frameon=False)
+    ax.set_title(f"faster-whisper before and after the decoding fix ({len(sub_ids)} clips)")
+    _save(fig, "cmp_fw_rerun")
+
+
 def free_asr_section(t: dict[str, str]) -> None:
     """Per-language table for the best free/local ASR (MMS), with where another system beats it."""
     df = load_asr()
@@ -464,7 +552,7 @@ def render(t: dict[str, str]) -> None:
 def main() -> None:
     _style()
     t: dict[str, str] = {}
-    sections = (asr_section, free_asr_section, fw_diagnosis, sep_section, diar_section,
+    sections = (asr_section, free_asr_section, fw_diagnosis, fw_rerun_section, sep_section, diar_section,
                 preproc_section, llm_section)  # fmt: skip
     for fn in sections:
         try:
