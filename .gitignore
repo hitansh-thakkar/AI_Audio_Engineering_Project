@@ -19,6 +19,7 @@ data/
 models/
 # generated deliverable package (zip & submit directly, don't commit)
 submission/
+media/
 
 # Proposal / private docs / presentation (not for the repo)
 Audio_Engineering_AI_Project_Proposal.docx
