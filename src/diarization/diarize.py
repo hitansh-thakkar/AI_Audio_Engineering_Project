@@ -72,7 +72,8 @@ class Diarizer:
             return None
         try:
             from .pyannote_api import PyannoteAPIBackend
-            model = str(getattr(self.cfg, "model", "precision-2"))
+            # cloud_model lets `model` keep naming the local pyannote pipeline (overlap detector)
+            model = str(getattr(self.cfg, "cloud_model", None) or getattr(self.cfg, "model", "precision-2"))
             backend = PyannoteAPIBackend(
                 api_key=api_key,
                 model=model,
@@ -122,6 +123,7 @@ class Diarizer:
             num_speakers=self.cfg.num_speakers,
             min_speakers=self.cfg.min_speakers, max_speakers=self.cfg.max_speakers,
             seed=int(self.run_cfg.seed), notes=notes,
+            single_speaker_cos=getattr(self.cfg, "single_speaker_cos", None),
         )
 
         # segment -> labelled turn, then merge adjacent same-speaker (gap < 0.5s)

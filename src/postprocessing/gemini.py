@@ -13,6 +13,7 @@ from typing import Any
 
 from ..config import load_env
 from ..types import Report, Transcript, TranscriptSegment
+from .gemini_fallback import generate_with_fallback, model_chain
 from .guardrails import check_factual_consistency
 
 
@@ -81,7 +82,9 @@ class GeminiPostProcessor:
         self.cfg = cfg
         self._client: Any = None
         self._load_error: str | None = None
-        self.model_name: str = getattr(cfg, "model", "gemini-3.8-flash")
+        self.model_name: str = getattr(cfg, "model", "gemini-3.5-flash-lite")
+        # free-tier quotas are per model; spill over to these when the primary is spent
+        self.models: list[str] = model_chain(self.model_name, getattr(cfg, "fallback_models", None))
 
     def load(self) -> None:
         load_env()
@@ -186,13 +189,23 @@ Return strictly valid JSON conforming to this schema:
   ]
 }}"""
 
-        response = self._client.models.generate_content(
-            model=self.model_name,
+        response, used_model = generate_with_fallback(
+            self._client, self.models, notes,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.2,
-                http_options=types.HttpOptions(timeout=25000),
+                temperature=0.0,  # deterministic output (golden rule 6)
+                seed=42,
+                # Free-tier Gemini returns transient 503/429 under load; retry with backoff
+                # before falling back to heuristic tags.
+                http_options=types.HttpOptions(
+                    timeout=25000,
+                    retry_options=types.HttpRetryOptions(
+                        attempts=4, initial_delay=2.0, max_delay=15.0,
+                        # 429 handled in generate_with_fallback: a daily quota can't be retried away
+                        http_status_codes=[500, 503, 504],
+                    ),
+                ),
             ),
         )
 
@@ -239,7 +252,7 @@ Return strictly valid JSON conforming to this schema:
 
         lang_str = ", ".join(languages) or "detected"
         notes.append(
-            f"Gemini ({self.model_name}) analyzed multilingual transcript: "
+            f"Gemini ({used_model}) analyzed multilingual transcript: "
             f"{len(dialogue)} turns, languages: {lang_str}"
         )
 

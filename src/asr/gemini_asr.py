@@ -13,6 +13,7 @@ from typing import Any
 import soundfile as sf
 
 from ..config import load_env
+from ..postprocessing.gemini_fallback import generate_with_fallback, model_chain
 from ..separation.stitch import build_speaker_tracks
 from ..types import AudioClip, DiarizationResult, SeparatedSource, Transcript, TranscriptSegment
 
@@ -25,9 +26,9 @@ class GeminiASR:
         self.cfg = cfg
         self._client: Any = None
         self._load_error: str | None = None
-        self.model_name = getattr(cfg, "model", "gemini-2.0-flash")
-        if "2.5" in str(self.model_name):
-            self.model_name = "gemini-2.0-flash"
+        self.model_name = str(getattr(cfg, "model", "gemini-3.5-flash-lite"))
+        # free-tier quotas are per model; spill over to these when the primary is spent
+        self.models = model_chain(self.model_name, getattr(cfg, "fallback_models", None))
 
     def load(self) -> None:
         load_env()
@@ -98,8 +99,8 @@ class GeminiASR:
         )
 
         try:
-            response = self._client.models.generate_content(
-                model=self.model_name,
+            response, _used = generate_with_fallback(
+                self._client, self.models, notes if notes is not None else [],
                 contents=[
                     types.Part.from_bytes(data=wav_bytes, mime_type="audio/wav"),
                     prompt,

@@ -4,12 +4,32 @@ Ensures that the LLM post-processing stage strictly adheres to the source transc
 verifying that no external, ungrounded, or fabricated facts (e.g., invented numbers,
 names, or contradictory events) are introduced into the final executive summary.
 """
+
 from __future__ import annotations
 
 import re
 from typing import Any
 
 from ..types import Transcript, TranscriptSegment
+
+_LANGUAGE_NAMES = {
+    "Hindi",
+    "English",
+    "Hinglish",
+    "Bengali",
+    "Bangla",
+    "Assamese",
+    "Marathi",
+    "Tamil",
+    "Telugu",
+    "Kannada",
+    "Malayalam",
+    "Gujarati",
+    "Punjabi",
+    "Odia",
+    "Urdu",
+    "Nepali",
+}
 
 
 def _extract_numbers(text: str) -> set[str]:
@@ -20,13 +40,70 @@ def _extract_numbers(text: str) -> set[str]:
 def _extract_key_terms(text: str) -> set[str]:
     """Extract content terms (lowercase words of length >= 3, excluding common stop words)."""
     stops = {
-        "the", "and", "for", "with", "this", "that", "from", "they", "have", "were",
-        "been", "what", "when", "where", "which", "there", "their", "about", "into",
-        "across", "after", "before", "each", "both", "some", "other", "than", "then",
-        "also", "does", "done", "will", "would", "could", "should", "said", "spoke",
-        "speaker", "speakers", "turn", "turns", "dialogue", "conversation", "discussed",
-        "discussed", "stated", "summary", "report", "recorded", "speech", "audio",
-        "hai", "hain", "kya", "aur", "bhi", "tha", "thi", "the", "aap", "hum", "yeh", "woh",
+        "the",
+        "and",
+        "for",
+        "with",
+        "this",
+        "that",
+        "from",
+        "they",
+        "have",
+        "were",
+        "been",
+        "what",
+        "when",
+        "where",
+        "which",
+        "there",
+        "their",
+        "about",
+        "into",
+        "across",
+        "after",
+        "before",
+        "each",
+        "both",
+        "some",
+        "other",
+        "than",
+        "then",
+        "also",
+        "does",
+        "done",
+        "will",
+        "would",
+        "could",
+        "should",
+        "said",
+        "spoke",
+        "speaker",
+        "speakers",
+        "turn",
+        "turns",
+        "dialogue",
+        "conversation",
+        "discussed",
+        "stated",
+        "summary",
+        "report",
+        "recorded",
+        "speech",
+        "audio",
+        "hai",
+        "hain",
+        "kya",
+        "aur",
+        "bhi",
+        "tha",
+        "thi",
+        "aap",
+        "hum",
+        "yeh",
+        "woh",
+        # discourse words a summary uses to *talk about* the transcript; they carry no facts
+        "additionally", "briefly", "describe", "describes", "discuss", "discusses", "mentions",
+        "talks", "shares", "features", "including", "various", "while", "one", "how",
     }
     tokens = re.findall(r"\b[a-zA-Z\u0900-\u0D7F]{3,}\b", text.lower())
     return {t for t in tokens if t not in stops}
@@ -37,7 +114,7 @@ def check_factual_consistency(
     transcript: Transcript,
     dialogue: list[TranscriptSegment] | None = None,
     client: Any = None,
-    model_name: str = "gemini-3.8-flash",
+    model_name: str = "gemini-3.5-flash-lite",
 ) -> tuple[float, str, list[str]]:
     """Verify that the generated summary is grounded in the raw transcript & dialogue.
 
@@ -63,7 +140,8 @@ def check_factual_consistency(
     hallucinations: list[str] = []
 
     # 1. Numeric Grounding: Any number in the summary MUST appear in the source
-    summary_numbers = _extract_numbers(summary)
+    # Speaker labels ("SPEAKER_01", "Speaker 1") are not facts; drop them before number checks.
+    summary_numbers = _extract_numbers(re.sub(r"(?i)speaker[\s_]*\d+", " ", summary))
     for num in summary_numbers:
         # Ignore turn/speaker indexing like "2 speakers" if turn count matches
         if num in source_numbers:
@@ -88,14 +166,20 @@ def check_factual_consistency(
             grounded_sentences += 1
             continue
 
-        overlap = sentence_terms.intersection(source_terms)
+        # Compare 5-char prefixes so inflections still match (learning/learn, stones/stone).
+        source_stems = {t[:5] for t in source_terms}
+        overlap = {t for t in sentence_terms if t[:5] in source_stems}
         overlap_ratio = len(overlap) / len(sentence_terms)
 
         if overlap_ratio >= 0.25:  # At least 25% key content words directly trace to source
             grounded_sentences += 1
         else:
             # Check for excessive ungrounded named entities / capitalized terms
-            capitalized = set(re.findall(r"\b[A-Z][a-z]{3,}\b", sentence)) - {"Speaker"}
+            # Only mid-sentence capitals are likely proper nouns: the first word is capitalised
+            # by grammar ("This", "Additionally"), and language names describe the transcript
+            # rather than invent a fact.
+            body = sentence.split(maxsplit=1)[1] if len(sentence.split()) > 1 else ""
+            capitalized = set(re.findall(r"\b[A-Z][a-z]{3,}\b", body)) - {"Speaker"} - _LANGUAGE_NAMES
             unsupported_caps = [c for c in capitalized if c.lower() not in source_corpus.lower()]
             if unsupported_caps:
                 hallucinations.append(

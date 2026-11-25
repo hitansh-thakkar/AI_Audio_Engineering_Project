@@ -42,7 +42,9 @@ def process_upload(
         "target_sample_rate": 16000,
         "mono": True,
         "highpass_hz": 70,
-        "denoise": "spectral",
+        # Spectral denoise distorts speaker embeddings and makes diarization over-count speakers
+        # (see config/live.yaml), so the diarization input stays un-denoised.
+        "denoise": "none",
         "normalize": "peak",
         "target_lufs": -23.0,
         "trim_silence": True,
@@ -70,7 +72,7 @@ def process_upload(
             "peak": round(float(np.max(np.abs(clip.samples))) if clip.samples.size else 0.0, 4),
         },
         "settings": {
-            "denoise": "spectral",
+            "denoise": "none",
             "normalize": "peak",
             "highpass_hz": 70,
             "trim_silence": True,
@@ -105,7 +107,15 @@ def run_diarization(
         samples = samples.mean(axis=1)
     clip = AudioClip(samples=samples, sample_rate=sample_rate, source_path=str(audio_path))
 
-    cfg = load_config(REPO_ROOT / "config" / "default.yaml")
+    # pyannote.ai precision-2 first; if the API fails (no key, 402, network) Diarizer falls
+    # back to live.yaml's local ECAPA + spectral path rather than default.yaml's MFCC one.
+    cfg = load_config(REPO_ROOT / "config" / "live.yaml")
+    # `model` stays the local pyannote community-1 pipeline (free, HF_TOKEN), which the overlap
+    # detector loads to find simultaneous speech for SepFormer; the cloud model is separate.
+    cfg.diarization = OmegaConf.merge(cfg.diarization, {
+        "backend": "precision2", "cloud_model": "precision-2", "api_key_env": "PYANNOTE_API_KEY",
+        "overlap_detector": "pyannote",
+    })
     notes: list[str] = []
     diarizer = Diarizer(cfg.diarization, cfg.run)
     diarizer.load()
@@ -163,7 +173,9 @@ def run_diarization(
     except Exception as exc:
         notes.append(f"speaker gantt skipped: {exc}")
 
-    backend_label = "pyannote.ai precision-2" if any("pyannote.ai" in n for n in notes) else str(cfg.diarization.backend)
+    # Only claim precision-2 if the cloud call actually succeeded, not merely attempted.
+    used_cloud = any("pyannote.ai" in n for n in notes) and not any("pyannote.ai API error" in n for n in notes)
+    backend_label = "pyannote.ai precision-2" if used_cloud else f"{cfg.diarization.backend} + {cfg.diarization.clustering}"
     payload = {
         "job_id": job_id,
         "backend": backend_label,
@@ -313,7 +325,13 @@ def run_asr(job_id: str, output_root: str | Path) -> dict[str, object]:
 
     # If Sarvam is unavailable or failed on all segments, fall back to Gemini cloud ASR
     if all(s.text in {"<asr-unavailable>", "<empty>"} for s in transcript.segments) and os.environ.get("GEMINI_API_KEY"):
-        gemini_asr = GeminiASR(cfg.asr)
+        # cfg.asr.model is the Sarvam model id (saaras:v4); Gemini needs its own model name,
+        # otherwise every chunk 404s.
+        gemini_cfg = OmegaConf.merge(cfg.asr, {
+            "model": str(cfg.asr.get("fallback_model", "gemini-3.5-flash-lite")),
+            "fallback_models": list(cfg.postprocessing.get("fallback_models", [])),
+        })
+        gemini_asr = GeminiASR(gemini_cfg)
         gemini_asr.load()
         if gemini_asr._client is not None:
             notes.append("Using Gemini Multimodal Cloud Audio ASR for speech transcription")

@@ -30,6 +30,7 @@ diarization:
   overlap_detector: none # overlaps inferred from diarized turns (fast); pyannote = slower, gated, more accurate
   emit_timeline_json: true
   embedding: ecapa # SpeechBrain ECAPA speaker embeddings (open) -> far better clustering
+  single_speaker_cos: 0.35 # k=2 centroids this similar => one speaker (measured: same voice 0.43-0.63, different 0.24-0.26)
   vad_top_db: 30
   window_seconds: 1.5
   window_hop: 0.75
@@ -49,6 +50,7 @@ separation:
 asr:
   backend: sarvam
   model: saaras:v4
+  fallback_model: gemini-3.5-flash-lite # Gemini audio ASR used only if Sarvam fails on every turn
   device: cpu
   compute_type: int8
   align: true
@@ -57,7 +59,8 @@ asr:
 
 postprocessing:
   backend: gemini
-  model: gemini-3.8-flash
+  model: gemini-3.5-flash-lite # free tier; 3.8-flash allows only 20 requests/day
+  fallback_models: [gemini-3.1-flash-lite, gemini-3.5-flash, gemini-flash-lite-latest] # separate free-tier quota each; tried in order on 429/404
   api_key_env: GEMINI_API_KEY
   host: http://localhost:11434
   structured_output: true
