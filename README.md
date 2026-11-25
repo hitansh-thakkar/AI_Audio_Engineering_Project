@@ -83,20 +83,20 @@ Outputs land in `outputs/<clip_id>/`: `report.json`, `report.md`, `timeline.json
 
 ### Web UI
 
-A Streamlit app wraps the pipeline for drag-and-drop use:
+A web app wraps the pipeline for drag-and-drop use:
 
 ```bash
-streamlit run app.py        # opens http://localhost:8501
+python .\preprocess_ui.py
 ```
 
 - **Separate my audio** — upload any audio (wav/mp3/flac/ogg/m4a); it's transcoded to 16 kHz mono, diarized (hand-applied spectral clustering), and split into one downloadable track per speaker, each with its own color + waveform.
 - **Demo: overlap mixtures** — pick a pre-built mixture to hear true overlap separation (these ship with ground-truth overlap regions).
 
-**To separate *overlapping* speech in your own uploads**, enable overlap detection (one-time, free): accept the licence at [`pyannote/speaker-diarization-community-1`](https://hf.co/pyannote/speaker-diarization-community-1) **and** its segmentation dependency on Hugging Face, set `HF_TOKEN` in `.env`, and re-run. Until then the UI still splits by speaker and shows how to enable overlap separation. `config/live.yaml` drives this mode (`diarization.overlap_detector: pyannote`); it degrades gracefully to per-speaker tracks if the licence isn't accepted.
+**To separate _overlapping_ speech in your own uploads**, enable overlap detection (one-time, free): accept the licence at [`pyannote/speaker-diarization-community-1`](https://hf.co/pyannote/speaker-diarization-community-1) **and** its segmentation dependency on Hugging Face, set `HF_TOKEN` in `.env`, and re-run. Until then the UI still splits by speaker and shows how to enable overlap separation. `config/live.yaml` drives this mode (`diarization.overlap_detector: pyannote`); it degrades gracefully to per-speaker tracks if the licence isn't accepted.
 
 ### How overlap separation works
 
-Diarization marks the overlap regions. For each, the separator takes a **context window** (the span of the two active speakers' turns, so SepFormer has solo audio to anchor each voice — separating a bare overlap slice alone performs poorly), runs 2-speaker SepFormer, then **attributes** each output stream to a diarization speaker by matching it against the mixture in that speaker's *solo* region (where the mix **is** that one speaker). Each attributed source is rescaled to mixture level (neural outputs have arbitrary scale that otherwise clips to 16-bit PCM) and stitched into that speaker's full-length track; solo regions pass through the original audio, overlaps carry the separated source. SepFormer's `wsj02mix` checkpoint is a hard **2-speaker** limit (`separation.max_speakers_supported`).
+Diarization marks the overlap regions. For each, the separator takes a **context window** (the span of the two active speakers' turns, so SepFormer has solo audio to anchor each voice — separating a bare overlap slice alone performs poorly), runs 2-speaker SepFormer, then **attributes** each output stream to a diarization speaker by matching it against the mixture in that speaker's _solo_ region (where the mix **is** that one speaker). Each attributed source is rescaled to mixture level (neural outputs have arbitrary scale that otherwise clips to 16-bit PCM) and stitched into that speaker's full-length track; solo regions pass through the original audio, overlaps carry the separated source. SepFormer's `wsj02mix` checkpoint is a hard **2-speaker** limit (`separation.max_speakers_supported`).
 
 ---
 
@@ -144,12 +144,12 @@ AI_Audio_Engineering_Project/
 
 **Required corpora (proposal) — 3 of 4 in the eval set, all as ≤5 GB slices:**
 
-| Corpus | Status |
-| --- | --- |
-| IndicVoices | ✅ used (base of dhvani_eval) |
-| Project Vaani | ✅ used (`fetch_vaani.py`) |
-| Nirantar | ✅ used (`fetch_nirantar.py`, official E2E-prefix slice) |
-| AIR-RS-DB | ⏳ pending — IEEE DataPort subscription download → `ingest_air_rs_db.py` |
+| Corpus        | Status                                                                   |
+| ------------- | ------------------------------------------------------------------------ |
+| IndicVoices   | ✅ used (base of dhvani_eval)                                            |
+| Project Vaani | ✅ used (`fetch_vaani.py`)                                               |
+| Nirantar      | ✅ used (`fetch_nirantar.py`, official E2E-prefix slice)                 |
+| AIR-RS-DB     | ⏳ pending — IEEE DataPort subscription download → `ingest_air_rs_db.py` |
 
 ---
 
